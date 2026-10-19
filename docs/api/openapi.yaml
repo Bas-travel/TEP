@@ -1,0 +1,1371 @@
+openapi: 3.0.3
+info:
+  title: TEP Travel API
+  version: 0.1.0
+  description: |
+    Sabai Travel / TEP — Go + Gin backend contract.
+    DEV may use mock adapters; BETA/PROD use MySQL + Redis + object storage.
+servers:
+  - url: https://api.beta.example.com/v1
+    description: Beta
+  - url: https://api.example.com/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local DEV
+
+tags:
+  - name: Auth
+  - name: Profile
+  - name: Catalog
+  - name: Bookings
+  - name: Payments
+  - name: Wallet
+  - name: AI Planner
+  - name: Trips
+  - name: Reviews
+  - name: Coupons
+  - name: Notifications
+  - name: Support
+  - name: Community
+  - name: Media
+  - name: Devices
+  - name: Webhooks
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register traveler (multi-step payload)
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '409':
+          $ref: '#/components/responses/Problem'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login with email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Problem'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Rotate refresh token
+      operationId: refreshTokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+
+  /auth/password:
+    put:
+      tags: [Auth]
+      summary: Change password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8 }
+      responses:
+        '204':
+          description: Updated
+
+  /me:
+    get:
+      tags: [Profile]
+      summary: Current user profile
+      operationId: getMe
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    delete:
+      tags: [Profile]
+      summary: Delete account
+      operationId: deleteAccount
+      responses:
+        '204':
+          description: Scheduled or completed deletion
+
+  /me/settings:
+    get:
+      tags: [Profile]
+      summary: App settings
+      operationId: getSettings
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+    patch:
+      tags: [Profile]
+      summary: Update settings
+      operationId: patchSettings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSettings'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+
+  /catalog/destinations:
+    get:
+      tags: [Catalog]
+      summary: List featured destinations
+      operationId: listDestinations
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Destination'
+
+  /catalog/listings:
+    get:
+      tags: [Catalog]
+      summary: Search listings
+      operationId: searchListings
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ListingType'
+        - name: destinationId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 50 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingList'
+
+  /catalog/listings/{listingId}:
+    get:
+      tags: [Catalog]
+      summary: Listing detail
+      operationId: getListing
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: My bookings
+      operationId: listBookings
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, confirmed, completed, cancelled]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BookingSummary'
+    post:
+      tags: [Bookings]
+      summary: Create booking draft
+      operationId: createBooking
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+
+  /bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      summary: Booking detail
+      operationId: getBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+
+  /bookings/{bookingId}/cancel:
+    post:
+      tags: [Bookings]
+      summary: Cancel booking and refund wallet if applicable
+      operationId: cancelBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+
+  /payments/intents:
+    post:
+      tags: [Payments]
+      summary: Start payment for booking
+      operationId: createPaymentIntent
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId, method]
+              properties:
+                bookingId: { type: integer, format: int64 }
+                method:
+                  type: string
+                  enum: [promptpay, card, wallet]
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+
+  /payments/intents/{intentId}:
+    get:
+      tags: [Payments]
+      summary: Poll payment status
+      operationId: getPaymentIntent
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+
+  /wallet:
+    get:
+      tags: [Wallet]
+      summary: Wallet balance and recent transactions
+      operationId: getWallet
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+
+  /wallet/top-ups:
+    post:
+      tags: [Wallet]
+      summary: Top up wallet (PromptPay in prod; mock in DEV)
+      operationId: topUpWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: { type: number, minimum: 1 }
+                method: { type: string, enum: [promptpay] }
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+
+  /ai/itineraries:
+    post:
+      tags: [AI Planner]
+      summary: Request itinerary generation (async)
+      operationId: createItineraryJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItineraryRequest'
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryJob'
+
+  /ai/itineraries/jobs/{jobId}:
+    get:
+      tags: [AI Planner]
+      summary: Get itinerary job status/result
+      operationId: getItineraryJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryJob'
+
+  /trips/saved:
+    get:
+      tags: [Trips]
+      summary: List saved trips
+      operationId: listSavedTrips
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavedTrip'
+    post:
+      tags: [Trips]
+      summary: Save trip (from AI or community copy)
+      operationId: createSavedTrip
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedTripInput'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedTrip'
+
+  /trips/saved/{tripId}:
+    get:
+      tags: [Trips]
+      summary: Saved trip detail
+      operationId: getSavedTrip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedTrip'
+
+  /reviews:
+    get:
+      tags: [Reviews]
+      summary: My reviews
+      operationId: listMyReviews
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+    post:
+      tags: [Reviews]
+      summary: Submit review for listing
+      operationId: createReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+
+  /coupons:
+    get:
+      tags: [Coupons]
+      summary: My coupons
+      operationId: listCoupons
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserCoupon'
+
+  /coupons/{code}/apply:
+    post:
+      tags: [Coupons]
+      summary: Mark coupon used / validate for checkout
+      operationId: applyCoupon
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookingDraftTotal: { type: number }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponApplyResult'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: In-app notifications
+      operationId: listNotifications
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+    post:
+      tags: [Notifications]
+      summary: Mark all read
+      operationId: markAllNotificationsRead
+      responses:
+        '204':
+          description: OK
+
+  /notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark one notification read
+      operationId: markNotificationRead
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: OK
+
+  /support/faqs:
+    get:
+      tags: [Support]
+      summary: Static FAQ list
+      operationId: listFaqs
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Faq'
+
+  /support/tickets:
+    get:
+      tags: [Support]
+      summary: My support tickets
+      operationId: listSupportTickets
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SupportTicket'
+    post:
+      tags: [Support]
+      summary: Create support ticket
+      operationId: createSupportTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject, message]
+              properties:
+                subject: { type: string, maxLength: 120 }
+                message: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportTicket'
+
+  /community/feed:
+    get:
+      tags: [Community]
+      summary: Feed with filters
+      operationId: getCommunityFeed
+      parameters:
+        - name: mode
+          in: query
+          schema: { type: string, enum: [all, following] }
+        - name: destination
+          in: query
+          schema: { type: string }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostList'
+
+  /community/posts:
+    post:
+      tags: [Community]
+      summary: Create post
+      operationId: createPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+
+  /community/posts/{postId}:
+    get:
+      tags: [Community]
+      summary: Post detail with comments
+      operationId: getPost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostDetail'
+    delete:
+      tags: [Community]
+      summary: Delete own post
+      operationId: deletePost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Deleted
+
+  /community/posts/{postId}/comments:
+    post:
+      tags: [Community]
+      summary: Add comment
+      operationId: createComment
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 1000 }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+
+  /community/posts/{postId}/like:
+    post:
+      tags: [Community]
+      summary: Toggle like
+      operationId: togglePostLike
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  liked: { type: boolean }
+                  likeCount: { type: integer }
+
+  /community/posts/{postId}/save:
+    post:
+      tags: [Community]
+      summary: Toggle save/bookmark
+      operationId: togglePostSave
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved: { type: boolean }
+
+  /community/posts/{postId}/hide:
+    post:
+      tags: [Community]
+      summary: Hide post from feed
+      operationId: hidePost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Hidden
+
+  /community/posts/{postId}/report:
+    post:
+      tags: [Community]
+      summary: Report post
+      operationId: reportPost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [spam, misinformation, harassment, privacy, other]
+      responses:
+        '204':
+          description: Reported
+
+  /community/groups:
+    get:
+      tags: [Community]
+      summary: List groups
+      operationId: listGroups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Group'
+
+  /community/groups/{groupId}:
+    get:
+      tags: [Community]
+      summary: Group detail
+      operationId: getGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupDetail'
+
+  /community/groups/{groupId}/join:
+    post:
+      tags: [Community]
+      summary: Join or leave group
+      operationId: toggleGroupMembership
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  joined: { type: boolean }
+
+  /community/members/{memberId}:
+    get:
+      tags: [Community]
+      summary: Public member profile
+      operationId: getMember
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberProfile'
+
+  /community/members/{memberId}/follow:
+    post:
+      tags: [Community]
+      summary: Follow or unfollow member
+      operationId: toggleFollow
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  following: { type: boolean }
+
+  /community/posts/{postId}/copy-trip:
+    post:
+      tags: [Community]
+      summary: Copy shared trip from post to saved trips
+      operationId: copyTripFromPost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedTrip'
+
+  /media/presign:
+    post:
+      tags: [Media]
+      summary: Get presigned upload URL
+      operationId: presignUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType, purpose]
+              properties:
+                contentType: { type: string }
+                purpose: { type: string, enum: [listing_image, post_image, avatar] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadUrl: { type: string, format: uri }
+                  objectKey: { type: string }
+
+  /devices/push-tokens:
+    post:
+      tags: [Devices]
+      summary: Register FCM token
+      operationId: registerPushToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string }
+                platform: { type: string, enum: [ios, android] }
+      responses:
+        '204':
+          description: Registered
+
+  /webhooks/payments/{provider}:
+    post:
+      tags: [Webhooks]
+      security: []
+      summary: Payment provider webhook (signature verified)
+      operationId: paymentWebhook
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Acknowledged
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ListingId:
+      name: listingId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      schema: { type: string, maxLength: 64 }
+
+  responses:
+    Problem:
+      description: Error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer }
+
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        phone: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        gender: { type: string }
+        dateOfBirth: { type: string, format: date }
+        nationality: { type: string }
+        language: { type: string }
+        budgetLevel: { type: string, enum: [budget, mid, luxury] }
+        travelStyles: { type: array, items: { type: string } }
+        favoriteDestination: { type: string }
+        travelWith: { type: string }
+
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/RegisterRequest'
+        - type: object
+          properties:
+            id: { type: integer, format: int64 }
+            level: { type: string }
+
+    UserSettings:
+      type: object
+      properties:
+        language: { type: string }
+        currency: { type: string }
+        theme: { type: string, enum: [light, dark, system] }
+        notifications:
+          type: object
+          properties:
+            push: { type: boolean }
+            email: { type: boolean }
+            trip: { type: boolean }
+            promo: { type: boolean }
+
+    Destination:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        slug: { type: string }
+        name: { type: string }
+        subtitle: { type: string }
+        gradientCss: { type: string }
+
+    ListingType:
+      type: string
+      enum: [hotel, restaurant, flight, attraction, trip]
+
+    ListingSummary:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/ListingType' }
+        name: { type: string }
+        location: { type: string }
+        rating: { type: number }
+        reviewCount: { type: integer }
+        priceFrom: { type: number }
+
+    ListingDetail:
+      allOf:
+        - $ref: '#/components/schemas/ListingSummary'
+        - type: object
+          properties:
+            description: { type: string }
+            amenities: { type: array, items: { type: string } }
+            mapQuery: { type: string }
+            imageUrl: { type: string, format: uri }
+
+    ListingList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListingSummary'
+        nextCursor: { type: string }
+
+    CreateBookingRequest:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [listingId, quantity]
+            properties:
+              listingId: { type: integer, format: int64 }
+              quantity: { type: integer, default: 1 }
+        couponCode: { type: string }
+        tripPackage:
+          type: object
+          description: AI trip booking without listing ID
+          properties:
+            title: { type: string }
+            subtitle: { type: string }
+            price: { type: number }
+
+    BookingSummary:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        bookingNumber: { type: string }
+        type: { $ref: '#/components/schemas/ListingType' }
+        title: { type: string }
+        subtitle: { type: string }
+        amount: { type: number }
+        method: { type: string }
+        date: { type: string, format: date-time }
+        status: { type: string, enum: [confirmed, completed, cancelled] }
+
+    BookingDetail:
+      allOf:
+        - $ref: '#/components/schemas/BookingSummary'
+        - type: object
+          properties:
+            subtotal: { type: number }
+            serviceFee: { type: number }
+            cancelReason: { type: string }
+            refundAmount: { type: number }
+
+    PaymentIntent:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [pending, succeeded, failed] }
+        method: { type: string }
+        amount: { type: number }
+        promptPayQrUrl: { type: string, format: uri }
+        clientSecret: { type: string }
+
+    Wallet:
+      type: object
+      properties:
+        balance: { type: number }
+        currency: { type: string }
+        transactions:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer, format: int64 }
+              direction: { type: string, enum: [in, out] }
+              label: { type: string }
+              amount: { type: number }
+              createdAt: { type: string, format: date-time }
+
+    ItineraryRequest:
+      type: object
+      required: [destination, days, budget]
+      properties:
+        destination: { type: string }
+        days: { type: integer, minimum: 1, maximum: 14 }
+        budget: { type: number }
+        styles: { type: array, items: { type: string } }
+        travelers: { type: integer, minimum: 1 }
+
+    ItineraryJob:
+      type: object
+      properties:
+        jobId: { type: string }
+        status: { type: string, enum: [pending, completed, failed] }
+        degraded: { type: boolean, description: true if template fallback used }
+        result:
+          $ref: '#/components/schemas/ItineraryResult'
+
+    ItineraryResult:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              title: { type: string }
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    time: { type: string }
+                    text: { type: string }
+                    place: { type: string }
+        budgetBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              value: { type: number }
+
+    SavedTripInput:
+      type: object
+      properties:
+        destination: { type: string }
+        days: { type: integer }
+        travelers: { type: integer }
+        budget: { type: number }
+        itinerary: { $ref: '#/components/schemas/ItineraryResult' }
+        source: { type: string, enum: [ai, community, manual] }
+
+    SavedTrip:
+      allOf:
+        - $ref: '#/components/schemas/SavedTripInput'
+        - type: object
+          properties:
+            id: { type: integer, format: int64 }
+
+    Review:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        itemName: { type: string }
+        itemType: { $ref: '#/components/schemas/ListingType' }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateReviewRequest:
+      type: object
+      required: [listingId, rating, comment]
+      properties:
+        listingId: { type: integer, format: int64 }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 2000 }
+
+    UserCoupon:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        code: { type: string }
+        title: { type: string }
+        detail: { type: string }
+        minSpend: { type: number }
+        maxDiscount: { type: number }
+        expiry: { type: string, format: date }
+        status: { type: string, enum: [available, used, expired] }
+
+    CouponApplyResult:
+      type: object
+      properties:
+        valid: { type: boolean }
+        discount: { type: number }
+        message: { type: string }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Faq:
+      type: object
+      properties:
+        id: { type: integer }
+        question: { type: string }
+        answer: { type: string }
+
+    SupportTicket:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        subject: { type: string }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Post:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        authorId: { type: string }
+        type: { type: string, enum: [story, tip, question, trip] }
+        destination: { type: string }
+        groupId: { type: integer, format: int64, nullable: true }
+        text: { type: string }
+        likeCount: { type: integer }
+        hasImage: { type: boolean }
+        sharedTrip:
+          type: object
+          nullable: true
+          properties:
+            days: { type: integer }
+            budget: { type: number }
+            styles: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+
+    PostDetail:
+      allOf:
+        - $ref: '#/components/schemas/Post'
+        - type: object
+          properties:
+            comments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Comment'
+
+    PostList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        nextCursor: { type: string }
+
+    CreatePostRequest:
+      type: object
+      required: [type, text]
+      properties:
+        type: { type: string, enum: [story, tip, question] }
+        destination: { type: string }
+        groupId: { type: integer, format: int64 }
+        text: { type: string, minLength: 10, maxLength: 500 }
+        imageObjectKey: { type: string }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        authorId: { type: string }
+        text: { type: string }
+        likeCount: { type: integer }
+        isBestAnswer: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Group:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        description: { type: string }
+        destination: { type: string, nullable: true }
+        memberCount: { type: integer }
+        gradientCss: { type: string }
+
+    GroupDetail:
+      allOf:
+        - $ref: '#/components/schemas/Group'
+        - type: object
+          properties:
+            rules: { type: array, items: { type: string } }
+            joined: { type: boolean }
+
+    MemberProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        level: { type: string }
+        bio: { type: string }
+        followerCount: { type: integer }
+        following: { type: boolean }
