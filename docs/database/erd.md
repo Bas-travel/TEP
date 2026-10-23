@@ -191,3 +191,27 @@ erDiagram
 - Seed data for DEV/BETA: destinations, listings mirror prototype constants.
 
 See [data-dictionary.md](data-dictionary.md).
+
+## MVP additions (review 2026-10-23)
+
+Tables referenced by relations or by the API but previously without a definition. Authoritative DDL:
+`services/api-go/migrations/0001_init.up.sql`.
+
+| Table | Purpose |
+|-------|---------|
+| `user_sessions` | Hashed refresh token, device, expiry, revoked_at (rotation + reuse detection) |
+| `user_settings` | Theme / language / currency / notification toggles (1:1 users) |
+| `device_push_tokens` | FCM tokens per user/device |
+| `booking_line_items` | Listing (or AI trip package) lines of a booking |
+| `payment_intents` | API-facing intent (`pi_…` id, method, status, QR/client secret); `payments` keeps the settled record |
+| `webhook_events` | `(provider, event_id)` unique → idempotent webhook handling |
+| `idempotency_keys` | `(user_id, key)` → stored response for `Idempotency-Key` |
+| `audit_logs` | Wallet / auth-sensitive mutations (security-model) |
+| `trip_days`, `trip_day_items` | Normalized itinerary |
+| `reviews` | Per listing, linked to a completed booking |
+| `notifications` | In-app notifications with read flag |
+| `faqs`, `support_tickets` | Help center |
+| `community_groups`, `community_group_members`, `user_follows` | Social graph |
+| `post_likes`, `post_saves`, `post_reports` | Post engagement / moderation |
+
+Enum change: `bookings.status` = `pending_payment | confirmed | completed | cancelled`.

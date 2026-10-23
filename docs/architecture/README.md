@@ -94,7 +94,7 @@ No `if (mock)` inside business widgets; inject `Repository` interfaces.
 |---------|----------|
 | Auth | JWT access (short) + refresh token; refresh rotation in Redis |
 | Authorization | RBAC: `traveler`, `local_guide` (future), `moderator`, `admin` |
-| Idempotency | `Idempotency-Key` header on `POST /bookings`, `POST /payments/confirm` |
+| Idempotency | `Idempotency-Key` header on `POST /bookings`, `POST /payments/intents` |
 | Pagination | Cursor-based for feeds; offset for admin lists |
 | Errors | RFC 7807-style JSON problem details |
 | Observability | Structured JSON logs, request ID, metrics (Prometheus), tracing (OpenTelemetry) |

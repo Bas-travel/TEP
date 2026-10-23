@@ -41,7 +41,3 @@ Implementation scaffold (Phase 03) will document:
 - `services/api-go` — Gin API
 - `apps/mobile-flutter` — Flutter client
 - `docker compose` — MySQL, Redis, MinIO (local object storage)
-=======
-# TEP
-แอพท่องเที่ยวครบวงจร
->>>>>>> 8fcdc609a6504c2e877c450e4c858afe66e910a6
