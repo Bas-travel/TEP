@@ -61,7 +61,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         if (mounted) setState(() => _version++);
                       },
                       child: Row(children: [
-                        Thumb(type: b.type, seed: b.id, size: 56),
+                        ListingThumb(type: b.type, seed: b.id, size: 56),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

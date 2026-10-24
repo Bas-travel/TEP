@@ -111,7 +111,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   Widget _summaryCard() => TepCard(
         child: Row(children: [
-          Thumb(type: widget.listing.type, imageUrl: widget.listing.imageUrl, seed: widget.listing.id, size: 56),
+          ListingThumb(type: widget.listing.type, imageUrl: widget.listing.imageUrl, seed: widget.listing.id, size: 56),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

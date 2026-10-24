@@ -62,8 +62,8 @@ class RatingChip extends StatelessWidget {
       ]);
 }
 
-class Thumb extends StatelessWidget {
-  const Thumb({super.key, required this.type, this.imageUrl, this.size = 76, this.seed = 0});
+class ListingThumb extends StatelessWidget {
+  const ListingThumb({super.key, required this.type, this.imageUrl, this.size = 76, this.seed = 0});
   final String type;
   final String? imageUrl;
   final double size;
@@ -103,7 +103,7 @@ class ListingTile extends StatelessWidget {
   Widget build(BuildContext context) => TepCard(
         onTap: onTap,
         child: Row(children: [
-          Thumb(type: l.type, imageUrl: l.imageUrl, seed: l.id),
+          ListingThumb(type: l.type, imageUrl: l.imageUrl, seed: l.id),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
