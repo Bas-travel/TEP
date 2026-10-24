@@ -67,8 +67,21 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+      - name: Analyze + test (results also published as annotations)
+        shell: bash
+        run: |
+          set +e
+          flutter analyze > /tmp/analyze.txt 2>&1; ac=$?
+          flutter test > /tmp/test.txt 2>&1; tc=$?
+          annotate() { # $1 title, $2 file, $3 exit code
+            [ "$3" -eq 0 ] && return
+            body=$(tail -c 12000 "$2" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\r//g;s/\n/%0A/g')
+            echo "::error title=$1 failed::$body"
+          }
+          annotate "flutter analyze" /tmp/analyze.txt $ac
+          annotate "flutter test" /tmp/test.txt $tc
+          tail -n 5 /tmp/analyze.txt /tmp/test.txt
+          exit $(( ac != 0 || tc != 0 ))
 
   contract:
     name: Contract — Flutter HttpApiClient ↔ Go API
