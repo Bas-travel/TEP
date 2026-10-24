@@ -1,0 +1,63 @@
+# Local DEV stack: MySQL 8, Redis 7, MinIO (S3-compatible) and the Go API.
+# Usage: cp .env.example .env && docker compose up --build
+# NOTE: values come from .env (never commit it). Defaults below are DEV-only.
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tep}
+      MYSQL_USER: ${MYSQL_USER:-tep}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set in .env}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports: ["${MYSQL_PORT:-3306}:3306"]
+    volumes: ["mysql-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["${REDIS_PORT:-6379}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in .env}
+    ports: ["${MINIO_PORT:-9000}:9000", "${MINIO_CONSOLE_PORT:-9001}:9001"]
+    volumes: ["minio-data:/data"]
+
+  api:
+    build: ./services/api-go
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      HTTP_ADDR: ":8080"
+      API_MODE: ${API_MODE:-mock}
+      JWT_SECRET: ${JWT_SECRET:?set in .env (>= 32 chars)}
+      MOCK_PAYMENT: ${MOCK_PAYMENT:-true}
+      MYSQL_DSN: ${MYSQL_USER:-tep}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-tep}?parseTime=true&charset=utf8mb4
+      REDIS_ADDR: redis:6379
+      MIGRATE_ON_START: "true"
+      MIGRATE_SEED: ${MIGRATE_SEED:-true}
+    ports: ["${API_PORT:-8080}:8080"]
+    healthcheck:
+      test: ["CMD", "/app/api", "-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mysql-data:
+  minio-data:
