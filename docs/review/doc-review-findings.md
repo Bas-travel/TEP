@@ -51,5 +51,25 @@ Status legend: **FIXED** (changed in this branch) · **OPEN** (needs a decision 
 
 ## Verification note
 
-Checked mechanically: all `$ref` targets resolve; YAML parses; operation list extracted (52 ops).
+Checked mechanically: all `$ref` targets resolve; YAML parses; operation list extracted (**55 ops** — corrected in review round 2; round 1 said 52).
 NOT verified: OpenAPI against a validator tool (none installable offline) — only structural checks by script.
+
+
+## Round 2 (2026-10-24) — independent re-verification
+
+Re-ran structural checks (YAML parse, `$ref` resolution, per-operation response codes) instead of trusting round 1.
+
+| # | Finding | Status |
+|---|---------|--------|
+| R2-1 | Round 1 reported 52 operations; actual count is **55**. | FIXED (text corrected) |
+| R2-2 | `POST /auth/refresh` had no `401` although B7 marked it fixed (invalid / reused refresh token). | FIXED |
+| R2-3 | `GET /bookings?status=` enum lacked `pending_payment` (added in B8 to `BookingSummary` only). | FIXED |
+| R2-4 | `UserProfile` was `allOf RegisterRequest`, so `GET /me` advertised a required `password` field. | FIXED (explicit schema, no password; `avatarUrl` added for board screen 1.20) |
+| R2-5 | `ListingSummary` has no thumbnail but the board's list screens (1.3, 1.12, 1.14) show images. | FIXED (`imageUrl`) |
+| R2-6 | `Problem` had no `required` fields; clients cannot rely on `code`. | FIXED |
+| R2-7 | **Design tokens conflict.** `screen-inventory.md` documents pine `#10403D` / amber `#E3A23C` / Fraunces (old React prototype). The "Travel Super App" board uses navy `#002765`-`#082D66`, teal `#23925D` success, light `#F4F8FC` background. | DECISION: Flutter follows the board (see `docs/ux/board-mapping.md`); old tokens kept as legacy reference. Needs owner confirmation. |
+| R2-8 | Migration file `0001_init.up.sql` is referenced by `erd.md` as authoritative DDL but did not exist. | FIXED in Sprint 1 (`services/api-go/migrations/`) |
+| R2-9 | ADR-001 specifies Gin. `golang.org/x/*` modules cannot be fetched in the build sandbox, so Gin cannot be compiled there. | DECISION: ADR-004 (net/http in Sprint 1, handlers framework-agnostic). Needs owner confirmation. |
+| R2-10 | Board lists WebSocket real-time and Stripe/PromptPay; docs defer WebSocket (live chat) and have PSP behind mock adapter. | Consistent with `mvp-scope.md`; no change. |
+
+Still NOT verified: OpenAPI validated by a real validator (none installable offline); Flutter code could not be compiled in the sandbox (see Sprint 1 report).

@@ -143,6 +143,8 @@ paths:
               properties:
                 refreshToken: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '429':
@@ -360,7 +362,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [all, confirmed, completed, cancelled]
+            enum: [all, pending_payment, confirmed, completed, cancelled]
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -1480,6 +1482,7 @@ components:
   schemas:
     Problem:
       type: object
+      required: [title, status, code]
       properties:
         type: { type: string }
         title: { type: string }
@@ -1531,12 +1534,24 @@ components:
         travelWith: { type: string }
 
     UserProfile:
-      allOf:
-        - $ref: '#/components/schemas/RegisterRequest'
-        - type: object
-          properties:
-            id: { type: integer, format: int64 }
-            level: { type: string }
+      description: Profile as returned by GET /me. Never contains password material.
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        level: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        gender: { type: string }
+        dateOfBirth: { type: string, format: date }
+        nationality: { type: string }
+        language: { type: string }
+        budgetLevel: { type: string, enum: [budget, mid, luxury] }
+        travelStyles: { type: array, items: { type: string } }
+        favoriteDestination: { type: string }
+        travelWith: { type: string }
+        avatarUrl: { type: string, format: uri }
 
     UserSettings:
       type: object
@@ -1575,6 +1590,7 @@ components:
         rating: { type: number }
         reviewCount: { type: integer }
         priceFrom: { type: number }
+        imageUrl: { type: string, format: uri, description: Card thumbnail (storage base URL + hero_image_key) }
 
     ListingDetail:
       allOf:
