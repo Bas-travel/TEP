@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "docs/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API (Go) + migrations on MySQL 8
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-pass
+          MYSQL_DATABASE: tep
+          MYSQL_USER: tep
+          MYSQL_PASSWORD: ci-db-pass
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-pass --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    defaults:
+      run:
+        working-directory: services/api-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api-go/go.mod
+          cache-dependency-path: services/api-go/go.sum
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+      - run: go build -o /tmp/tep-api ./cmd/api
+      - name: Migrations + health (real MySQL/Redis)
+        env:
+          APP_ENV: dev
+          HTTP_ADDR: ":8080"
+          JWT_SECRET: ci-only-secret-0123456789abcdef0123456789
+          MYSQL_DSN: tep:ci-db-pass@tcp(127.0.0.1:3306)/tep?parseTime=true&charset=utf8mb4
+          REDIS_ADDR: 127.0.0.1:6379
+          MIGRATE_ON_START: "true"
+          MIGRATE_SEED: "true"
+        run: |
+          /tmp/tep-api & 
+          for i in $(seq 1 30); do curl -sf localhost:8080/health/live && break; sleep 1; done
+          curl -sf localhost:8080/health/ready | tee /dev/stderr | grep -q '"mysql":"ok"'
+          /tmp/tep-api -healthcheck
+
+  mobile:
+    name: Mobile (Flutter) analyze + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile-flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  contract:
+    name: Contract — Flutter HttpApiClient ↔ Go API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api-go/go.mod
+          cache-dependency-path: services/api-go/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Start API (mock mode, in-memory)
+        working-directory: services/api-go
+        env:
+          APP_ENV: dev
+          HTTP_ADDR: ":8080"
+          JWT_SECRET: ci-only-secret-0123456789abcdef0123456789
+        run: |
+          go build -o /tmp/tep-api ./cmd/api
+          /tmp/tep-api &
+          for i in $(seq 1 30); do curl -sf localhost:8080/health/live && break; sleep 1; done
+      - name: Run contract tests
+        working-directory: apps/mobile-flutter
+        env:
+          TEP_API_URL: http://127.0.0.1:8080
+        run: |
+          flutter pub get
+          flutter test test/integration

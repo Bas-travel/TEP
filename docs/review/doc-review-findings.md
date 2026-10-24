@@ -73,3 +73,22 @@ Re-ran structural checks (YAML parse, `$ref` resolution, per-operation response 
 | R2-10 | Board lists WebSocket real-time and Stripe/PromptPay; docs defer WebSocket (live chat) and have PSP behind mock adapter. | Consistent with `mvp-scope.md`; no change. |
 
 Still NOT verified: OpenAPI validated by a real validator (none installable offline); Flutter code could not be compiled in the sandbox (see Sprint 1 report).
+
+
+## Round 3 (2026-10-25) — Sprint 1 integration findings (UI ↔ API)
+
+| # | Finding | Status |
+|---|---------|--------|
+| F-1 | **No stay/visit date or guest count in `POST /bookings`.** Board screens 1.5–1.7 (choose date, guests) cannot be persisted: `BookingLine` has only `listingId` + `quantity`. The Flutter UI collects the date but does not send it. | OPEN → proposal: add `startDate`, `endDate?` (date), `guests` to the booking line + `booking_line_items` columns; needs owner decision before Sprint 3 |
+| F-2 | No media/image API: listing/destination have no image; board shows photos. UI uses typed gradient thumbnails and honours optional `imageUrl`. | OPEN (MinIO + signed URLs, Sprint 4+) |
+| F-3 | Booking number format differs: API `TEP-yyMMdd-00001`; mock used `TEP-yyyy-00001`. | FIXED (mock aligned) |
+| F-4 | Timestamps are emitted with nanoseconds and the server's local offset (`2026-10-25T03:06:10.423782765+07:00`). Dart parses it, but contract should be RFC 3339 UTC with milliseconds. | OPEN (low) — change in `httpx`/types when DB mode lands |
+| F-5 | Flutter refresh-token rotation: client refreshes once on 401 and retries; reuse-detection still OPEN (B7). Tokens are in memory only. | OPEN (Sprint 2: secure storage) |
+| F-6 | Wallet balance in DEV seed is ฿1,500 (demo user); journeys that pay by Wallet must pick a listing ≤ ~฿1,450 (tests use listing 7). | NOTE |
+
+### Verification performed (2026-10-25)
+- `go vet`, `go test -race ./...` — pass. `gofmt -l` — clean. `python3 scripts/gen_seed.py --check` — no drift.
+- Migrations applied to a real MySQL 8.0.46: `0001`+`0002` up, then `0002`+`0001` down — all succeed; API started with `MIGRATE_ON_START`, `/health/ready` returned `mysql: ok, redis: ok`; `-healthcheck` exit 0.
+- Live curl journey on the running API: login → create booking (idempotent) → pay with Wallet → cancel → refund → 401 without token → 422 problem+json with field errors.
+- `docker compose config` parses with `.env.example` values.
+- NOT verified locally: `docker compose up` (no Docker daemon in the sandbox) and **all Flutter code** (Flutter/Dart SDK downloads are blocked in the sandbox). Flutter analyze/test and the HttpApiClient↔API contract test are delegated to CI.

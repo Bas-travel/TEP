@@ -34,10 +34,27 @@ Interactive React prototype (DEV mock only): [sabai-travel-app-prototype.jsx](sa
 
 Flutter implementation should preserve UX parity documented in `docs/ux/`.
 
-## Local setup (future)
+## Local setup (Phase 03 · Sprint 1)
 
-Implementation scaffold (Phase 03) will document:
+| Path | What |
+|------|------|
+| `services/api-go` | Go API (net/http in Sprint 1, see ADR-004): health, auth, catalog, bookings, payments (mock PSP), wallet; embedded SQL migrations |
+| `apps/mobile-flutter` | Flutter client, `API_MODE=mock` (offline) or `http` (real API) — see its README |
+| `docker-compose.yml` | MySQL 8, Redis 7, MinIO, API |
+| `scripts/gen_seed.py` | One source for seed data → SQL migration, Go fixtures, Flutter mock fixtures (`--check` detects drift) |
 
-- `services/api-go` — Gin API
-- `apps/mobile-flutter` — Flutter client
-- `docker compose` — MySQL, Redis, MinIO (local object storage)
+```bash
+cp .env.example .env              # DEV placeholders only; .env is git-ignored — never commit it
+docker compose up --build         # API on http://localhost:8080
+curl localhost:8080/health/ready  # {"checks":{"mysql":"ok","redis":"ok"},"status":"ok",...}
+
+# API without Docker (in-memory mock mode)
+cd services/api-go && APP_ENV=dev JWT_SECRET=$(openssl rand -hex 24) go run ./cmd/api
+go test ./...                     # unit + HTTP tests
+
+# Mobile
+cd apps/mobile-flutter && flutter pub get && flutter test && flutter run   # login demo@tep.dev / Passw0rd!
+```
+
+CI (`.github/workflows/ci.yml`): Go vet/test + migrations on MySQL 8, Flutter analyze/test, and a contract test that runs the
+Flutter `HttpApiClient` against the real Go API.
