@@ -112,8 +112,8 @@ class ListingTile extends StatelessWidget {
               Text(l.location, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: TepColors.muted, fontSize: 13)),
               const SizedBox(height: 6),
               Row(children: [
-                RatingChip(l.rating, l.reviewCount),
-                const Spacer(),
+                Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: RatingChip(l.rating, l.reviewCount))),
+                const SizedBox(width: 8),
                 Text('เริ่ม ${thb(l.priceFrom)}', style: const TextStyle(color: TepColors.navyBar, fontWeight: FontWeight.w700)),
               ]),
             ]),

@@ -75,7 +75,7 @@ jobs:
           flutter test > /tmp/test.txt 2>&1; tc=$?
           annotate() { # $1 title, $2 file, $3 exit code
             [ "$3" -eq 0 ] && return
-            body=$(tail -c 12000 "$2" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\r//g;s/\n/%0A/g')
+            body=$( { grep -nE "❌|Expected:|Actual:|Which:|Test failed|Error:|error •" "$2" | head -c 4000; echo; echo ----; tail -c 8000 "$2"; } | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\r//g;s/\n/%0A/g')
             echo "::error title=$1 failed::$body"
           }
           annotate "flutter analyze" /tmp/analyze.txt $ac
