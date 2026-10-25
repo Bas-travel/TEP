@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'models_engage.dart';
 
 class BookingLine {
   const BookingLine(this.listingId, this.quantity);
@@ -28,4 +29,28 @@ abstract class ApiClient {
   Future<PaymentIntent> intent(String id);
   Future<Wallet> wallet();
   Future<PaymentIntent> topUp(double amount);
+
+  // ---- engagement (Sprint 2): settings, coupons, notifications, trips, reviews, support, community, AI ----
+  Future<UserSettings> settings();
+  Future<UserSettings> updateSettings(UserSettings s);
+
+  Future<List<Coupon>> coupons();
+  Future<double> applyCoupon(String code, double bookingTotal);
+
+  Future<List<AppNotification>> notifications();
+  Future<void> markNotificationRead(int id);
+  Future<void> markAllNotificationsRead();
+
+  Future<List<SavedTrip>> savedTrips();
+  Future<SavedTrip> saveTrip({required String destination, required int days, required int travelers, required double budget, ItineraryResult? itinerary, String source = 'ai'});
+  Future<ItineraryJob> planItinerary(ItineraryRequest req);
+
+  Future<List<Review>> myReviews();
+  Future<Review> createReview({required int listingId, required int rating, required String comment});
+
+  Future<List<SupportTicket>> tickets();
+  Future<SupportTicket> createTicket({required String subject, required String message});
+
+  Future<List<Post>> feed({String mode = 'all', String? destination});
+  Future<LikeResult> toggleLike(int postId);
 }

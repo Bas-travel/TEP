@@ -5,6 +5,7 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import 'listing_detail_screen.dart';
+import 'menu_screen.dart';
 import 'shell.dart';
 import 'widgets/common.dart';
 
@@ -16,8 +17,11 @@ class _HomeData {
 
 /// Board 1.1 — greeting header, search entry, categories, destinations, recommended listings.
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.onSearch, this.modeLabel = 'mock'});
+  const HomeScreen({super.key, required this.onSearch, this.onTab, this.modeLabel = 'mock'});
   final void Function(SearchIntent) onSearch;
+
+  /// Switches bottom-nav tab (used by the main-menu entries).
+  final void Function(int tab)? onTab;
   final String modeLabel;
 
   @override
@@ -52,6 +56,12 @@ class HomeScreen extends StatelessWidget {
                     const Text('Explore Your Journey', style: TextStyle(color: Colors.white70, fontSize: 13)),
                   ]),
                 ),
+                IconButton(
+                  key: const Key('home-menu'),
+                  tooltip: 'เมนูหลัก',
+                  icon: const Icon(Icons.apps_rounded, color: Colors.white),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MenuScreen(onTab: (t) => onTab?.call(t)))),
+                ),
                 Chip(label: Text(modeLabel.toUpperCase(), style: const TextStyle(fontSize: 10)), visualDensity: VisualDensity.compact),
               ]),
               const SizedBox(height: 16),
@@ -65,14 +75,14 @@ class HomeScreen extends StatelessWidget {
                   child: const Row(children: [
                     Icon(Icons.search_rounded, color: TepColors.muted),
                     SizedBox(width: 8),
-                    Text('ค้นหาที่พัก ร้านอาหาร ที่เที่ยว', style: TextStyle(color: TepColors.muted)),
+                    Expanded(child: Text('ค้นหาที่พัก ร้านอาหาร ที่เที่ยว', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: TepColors.muted))),
                   ]),
                 ),
               ),
             ]),
           ),
           SizedBox(
-            height: 108,
+            height: 116,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
@@ -86,14 +96,14 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => onSearch(SearchIntent(type: e.key)),
                       child: SizedBox(
                         width: 72,
-                        child: Column(children: [
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: TepColors.line)),
                             child: Icon(typeIcon(e.key), color: TepColors.navyBar),
                           ),
                           const SizedBox(height: 6),
-                          Text(e.value, style: const TextStyle(fontSize: 12)),
+                          Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
                         ]),
                       ),
                     ),

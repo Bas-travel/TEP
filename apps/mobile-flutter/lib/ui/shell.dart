@@ -26,6 +26,11 @@ class _AppShellState extends State<AppShell> {
   int _searchVersion = 0;
   SearchIntent _intent = const SearchIntent();
 
+  void _goTab(int i) => setState(() {
+        if (i == 1 && _tab != 1) _intent = const SearchIntent();
+        _tab = i;
+      });
+
   void _openSearch(SearchIntent i) => setState(() {
         _intent = i;
         _searchVersion++;
@@ -35,7 +40,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      HomeScreen(onSearch: _openSearch, modeLabel: widget.modeLabel),
+      HomeScreen(onSearch: _openSearch, onTab: _goTab, modeLabel: widget.modeLabel),
       SearchScreen(key: ValueKey('search-$_searchVersion'), intent: _intent),
       const BookingsScreen(),
       const WalletScreen(),

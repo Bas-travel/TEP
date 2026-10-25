@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'api_client.dart';
 import 'models.dart';
+import 'models_engage.dart';
 
 /// Real HTTP client for services/api-go. Tokens are kept in memory (secure storage is a Sprint 2 item).
 class HttpApiClient implements ApiClient {
@@ -149,4 +150,83 @@ class HttpApiClient implements ApiClient {
   @override
   Future<PaymentIntent> topUp(double amount) async =>
       PaymentIntent.fromJson(await _call('POST', _uri('/wallet/top-ups'), body: {'amount': amount, 'method': 'promptpay'}));
+
+  // ---- engagement ----
+  @override
+  Future<UserSettings> settings() async => UserSettings.fromJson(await _call('GET', _uri('/me/settings')));
+
+  @override
+  Future<UserSettings> updateSettings(UserSettings s) async =>
+      UserSettings.fromJson(await _call('PATCH', _uri('/me/settings'), body: s.toJson()));
+
+  @override
+  Future<List<Coupon>> coupons() async => _items(await _call('GET', _uri('/coupons'))).map(Coupon.fromJson).toList();
+
+  @override
+  Future<double> applyCoupon(String code, double bookingTotal) async {
+    final j = await _call('POST', _uri('/coupons/${Uri.encodeComponent(code)}/apply'), body: {'bookingDraftTotal': bookingTotal});
+    return (j['discount'] as num?)?.toDouble() ?? 0;
+  }
+
+  @override
+  Future<List<AppNotification>> notifications() async =>
+      _items(await _call('GET', _uri('/notifications'))).map(AppNotification.fromJson).toList();
+
+  @override
+  Future<void> markNotificationRead(int id) async {
+    await _call('POST', _uri('/notifications/$id/read'));
+  }
+
+  @override
+  Future<void> markAllNotificationsRead() async {
+    await _call('POST', _uri('/notifications/read-all'));
+  }
+
+  @override
+  Future<List<SavedTrip>> savedTrips() async => _items(await _call('GET', _uri('/trips/saved'))).map(SavedTrip.fromJson).toList();
+
+  @override
+  Future<SavedTrip> saveTrip({required String destination, required int days, required int travelers, required double budget, ItineraryResult? itinerary, String source = 'ai'}) async =>
+      SavedTrip.fromJson(await _call('POST', _uri('/trips/saved'), body: {
+        'destination': destination,
+        'days': days,
+        'travelers': travelers,
+        'budget': budget,
+        'source': source,
+        if (itinerary != null) 'itinerary': itinerary.toJson(),
+      }));
+
+  @override
+  Future<ItineraryJob> planItinerary(ItineraryRequest req) async {
+    var job = ItineraryJob.fromJson(await _call('POST', _uri('/ai/itineraries'), body: req.toJson()));
+    for (var i = 0; i < 10 && job.status == 'pending'; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      job = ItineraryJob.fromJson(await _call('GET', _uri('/ai/itineraries/jobs/${job.jobId}')));
+    }
+    return job;
+  }
+
+  @override
+  Future<List<Review>> myReviews() async => _items(await _call('GET', _uri('/reviews'))).map(Review.fromJson).toList();
+
+  @override
+  Future<Review> createReview({required int listingId, required int rating, required String comment}) async =>
+      Review.fromJson(await _call('POST', _uri('/reviews'), body: {'listingId': listingId, 'rating': rating, 'comment': comment}));
+
+  @override
+  Future<List<SupportTicket>> tickets() async => _items(await _call('GET', _uri('/support/tickets'))).map(SupportTicket.fromJson).toList();
+
+  @override
+  Future<SupportTicket> createTicket({required String subject, required String message}) async =>
+      SupportTicket.fromJson(await _call('POST', _uri('/support/tickets'), body: {'subject': subject, 'message': message}));
+
+  @override
+  Future<List<Post>> feed({String mode = 'all', String? destination}) async =>
+      _items(await _call('GET', _uri('/community/feed', {'mode': mode, 'destination': destination}))).map(Post.fromJson).toList();
+
+  @override
+  Future<LikeResult> toggleLike(int postId) async {
+    final j = await _call('POST', _uri('/community/posts/$postId/like'));
+    return LikeResult(j['liked'] as bool? ?? false, (j['likeCount'] as num?)?.toInt() ?? 0);
+  }
 }

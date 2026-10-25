@@ -1,10 +1,11 @@
 import 'api_client.dart';
+import 'mock_engage.dart';
 import 'mock_fixtures.dart';
 import 'models.dart';
 
 /// In-memory implementation of the API contract so the app runs with no backend (API_MODE=mock).
 /// Business rules mirror services/api-go mock mode: 3% service fee, WELCOME10 (10%, max 500, min 1000).
-class MockApiClient implements ApiClient {
+class MockApiClient with MockEngage implements ApiClient {
   MockApiClient({this.latency = const Duration(milliseconds: 250), this.settleAfter = const Duration(seconds: 3), DateTime Function()? now})
       : _now = now ?? DateTime.now {
     _wallet = 1500;
@@ -13,6 +14,13 @@ class MockApiClient implements ApiClient {
 
   final Duration latency, settleAfter;
   final DateTime Function() _now;
+
+  @override
+  Duration get mockLatency => latency;
+  @override
+  bool get mockSignedIn => _signedIn;
+  @override
+  DateTime mockNow() => _now();
 
   static const demoEmail = 'demo@tep.dev';
   static const demoPassword = 'Passw0rd!';
