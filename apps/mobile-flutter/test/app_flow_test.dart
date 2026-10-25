@@ -89,4 +89,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('submit')), findsOneWidget);
   });
+  testWidgets('main menu lists all 12 board entries and opens Coupons', (tester) async {
+    await _boot(tester);
+    await _login(tester);
+    await tester.tap(find.byKey(const Key('home-menu')));
+    await tester.pumpAndSettle();
+    for (final id in ['home', 'search', 'bookings', 'trips', 'tickets', 'wallet', 'coupons', 'notifications', 'messages', 'profile', 'settings', 'support']) {
+      expect(find.byKey(Key('menu-$id')), findsOneWidget, reason: 'menu entry $id');
+    }
+    await tester.tap(find.byKey(const Key('menu-coupons')));
+    await tester.pumpAndSettle();
+    expect(find.text('คูปองของฉัน'), findsOneWidget);
+    expect(find.text('ส่วนลดสมาชิกใหม่ 10%'), findsOneWidget);
+  });
+
+  testWidgets('menu entry for Wallet switches the bottom tab', (tester) async {
+    await _boot(tester);
+    await _login(tester);
+    await tester.tap(find.byKey(const Key('home-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu-wallet')));
+    await tester.pumpAndSettle();
+    expect(find.text('฿1,500'), findsOneWidget);
+  });
 }

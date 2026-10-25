@@ -26,8 +26,14 @@ class _AppShellState extends State<AppShell> {
   int _searchVersion = 0;
   SearchIntent _intent = const SearchIntent();
 
+  int _bookingsVersion = 0, _walletVersion = 0;
+
+  /// Bottom-nav / main-menu navigation. Bookings and Wallet are rebuilt (and therefore reloaded) whenever the
+  /// user switches to them, because IndexedStack keeps tabs alive and their data changes after payments.
   void _goTab(int i) => setState(() {
         if (i == 1 && _tab != 1) _intent = const SearchIntent();
+        if (i == 2 && _tab != 2) _bookingsVersion++;
+        if (i == 3 && _tab != 3) _walletVersion++;
         _tab = i;
       });
 
@@ -42,18 +48,15 @@ class _AppShellState extends State<AppShell> {
     final pages = <Widget>[
       HomeScreen(onSearch: _openSearch, onTab: _goTab, modeLabel: widget.modeLabel),
       SearchScreen(key: ValueKey('search-$_searchVersion'), intent: _intent),
-      const BookingsScreen(),
-      const WalletScreen(),
+      BookingsScreen(key: ValueKey('bookings-$_bookingsVersion')),
+      WalletScreen(key: ValueKey('wallet-$_walletVersion')),
       const ProfileScreen(),
     ];
     return Scaffold(
       body: IndexedStack(index: _tab, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() {
-          if (i == 1 && _tab != 1) _intent = const SearchIntent();
-          _tab = i;
-        }),
+        onDestinationSelected: _goTab,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'หน้าแรก'),
           NavigationDestination(icon: Icon(Icons.search_rounded), selectedIcon: Icon(Icons.search_rounded), label: 'ค้นหา'),

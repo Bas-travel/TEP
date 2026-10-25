@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_scope.dart';
 import '../core/format.dart';
-import '../core/theme.dart';
 import '../data/models.dart';
 import 'listing_detail_screen.dart';
 import 'widgets/common.dart';
