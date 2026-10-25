@@ -43,5 +43,8 @@ Roles: User (traveler) · Partner · Admin · Staff. **Sprint 1–2 implements U
 
 Portals (Partner 2.1–2.4, Admin 3.1–3.4, Staff 4.1–4.4): deferred; no API/ERD (see `requirements/mvp-scope.md`).
 
-## Sprint 1 UI delivered
+## Sprint 1 UI delivered (updated 2026-10-25)
+All main-menu entries are reachable from Home → menu button (`MenuScreen`): trips, tickets, coupons, notifications, messages (stub), settings, support/FAQ/contact, AI planner, community, city guide, reviews, portals preview. Map and weather are placeholders by design.
+
+### Original Sprint 1 subset
 Shell with bottom nav (Home, Search, Bookings, Wallet, Profile), Home, Search+results, Listing detail, Bookings list, Wallet, Profile, Login — running on `ApiClient` with `mock` and `http` implementations.

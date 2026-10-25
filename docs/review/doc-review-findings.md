@@ -92,3 +92,14 @@ Still NOT verified: OpenAPI validated by a real validator (none installable offl
 - Live curl journey on the running API: login → create booking (idempotent) → pay with Wallet → cancel → refund → 401 without token → 422 problem+json with field errors.
 - `docker compose config` parses with `.env.example` values.
 - NOT verified locally: `docker compose up` (no Docker daemon in the sandbox) and **all Flutter code** (Flutter/Dart SDK downloads are blocked in the sandbox). Flutter analyze/test and the HttpApiClient↔API contract test are delegated to CI.
+
+
+## Round 4 (2026-10-25) — CI repair + engagement features
+
+| # | Finding | Status |
+|---|---------|--------|
+| R4-1 | CI red on `155f212`: Home search bar `Row` overflowed (no `Expanded`) and category labels wrapped past the 72×94 tile. | FIXED (`home_screen.dart`) |
+| R4-2 | Bookings and Wallet tabs stayed stale after paying because `IndexedStack` keeps tabs alive; the journey test caught it. | FIXED (tabs reload on switch, `shell.dart`) |
+| R4-3 | Local WIP was inconsistent (`shell.dart` passed `onTab` that `HomeScreen` did not accept). | FIXED before commit |
+| R4-4 | Route/OpenAPI parity script: 37 Go routes, 0 outside the spec, 18 spec operations still unimplemented (listed in `qa/sprint-1-acceptance.md`). | NOTE |
+| R4-5 | `master` on the remote has unrelated history (README with merge-conflict markers). Not touched. | OPEN — owner decision |
