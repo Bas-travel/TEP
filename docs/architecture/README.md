@@ -1,4 +1,4 @@
-# System architecture — TEP / Sabai Travel
+# System architecture — TEP / Sabai jai Travel
 
 ## Context
 

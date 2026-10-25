@@ -54,7 +54,7 @@ class _WalletScreenState extends State<WalletScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [TepColors.navy, TepColors.navyBar, TepColors.partner]),
+                gradient: const LinearGradient(colors: [TepColors.primaryDeep, TepColors.primary, TepColors.secondary]),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -64,7 +64,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 16),
                 FilledButton.icon(
                   key: const Key('topup'),
-                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: TepColors.navy, minimumSize: const Size.fromHeight(46)),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: TepColors.primary, minimumSize: const Size.fromHeight(46)),
                   onPressed: _topUp,
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('เติมเงิน'),

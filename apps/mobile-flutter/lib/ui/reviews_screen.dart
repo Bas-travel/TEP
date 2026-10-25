@@ -24,7 +24,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       appBar: AppBar(title: const Text('รีวิวของฉัน')),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('new-review'),
-        backgroundColor: TepColors.navyBar,
+        backgroundColor: TepColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.rate_review_rounded),
         label: const Text('เขียนรีวิว'),
@@ -117,7 +117,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       appBar: AppBar(title: const Text('เขียนรีวิว')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         if (widget.listingId != null)
-          TepCard(child: Row(children: [const Icon(Icons.place_rounded, color: TepColors.navyBar), const SizedBox(width: 8), Expanded(child: Text(widget.listingName ?? 'รายการ #${widget.listingId}', style: const TextStyle(fontWeight: FontWeight.w700)))]))
+          TepCard(child: Row(children: [const Icon(Icons.place_rounded, color: TepColors.primary), const SizedBox(width: 8), Expanded(child: Text(widget.listingName ?? 'รายการ #${widget.listingId}', style: const TextStyle(fontWeight: FontWeight.w700)))]))
         else
           FutureBuilder<ListingPage>(
             future: _options,

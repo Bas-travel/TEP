@@ -128,7 +128,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         TepCard(
           onTap: _pickDate,
           child: Row(children: [
-            const Icon(Icons.calendar_month_rounded, color: TepColors.navyBar),
+            const Icon(Icons.calendar_month_rounded, color: TepColors.primary),
             const SizedBox(width: 12),
             const Expanded(child: Text('วันที่ใช้บริการ')),
             Text(dmy(_date), style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -137,7 +137,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         const SizedBox(height: 12),
         TepCard(
           child: Row(children: [
-            const Icon(Icons.group_rounded, color: TepColors.navyBar),
+            const Icon(Icons.group_rounded, color: TepColors.primary),
             const SizedBox(width: 12),
             const Expanded(child: Text('จำนวน')),
             IconButton(key: const Key('qty-minus'), onPressed: _qty > 1 ? () => setState(() => _qty--) : null, icon: const Icon(Icons.remove_circle_outline)),
@@ -181,7 +181,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           _row('ราคาสินค้า', thb(b.subtotal)),
           _row('ค่าบริการ', thb(b.serviceFee)),
           const Divider(),
-          _row('ยอดชำระ', thb(b.amount), bold: true, color: TepColors.navyBar),
+          _row('ยอดชำระ', thb(b.amount), bold: true, color: TepColors.primary),
         ]),
       ),
       const SizedBox(height: 16),
@@ -199,10 +199,10 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                       _intentKey = newIdempotencyKey();
                     }),
             child: Row(children: [
-              Icon(m.$3, color: TepColors.navyBar),
+              Icon(m.$3, color: TepColors.primary),
               const SizedBox(width: 12),
               Expanded(child: Text(m.$2, style: const TextStyle(fontWeight: FontWeight.w600))),
-              Icon(_method == m.$1 ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: _method == m.$1 ? TepColors.navyBar : TepColors.muted),
+              Icon(_method == m.$1 ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: _method == m.$1 ? TepColors.primary : TepColors.muted),
             ]),
           ),
         ),
@@ -227,7 +227,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final b = _booking!;
     return Container(
       width: double.infinity,
-      color: TepColors.navy,
+      color: TepColors.primary,
       padding: const EdgeInsets.all(24),
       child: SafeArea(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -244,7 +244,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           const SizedBox(height: 28),
           FilledButton(
             key: const Key('done'),
-            style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: TepColors.navy),
+            style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: TepColors.primary),
             onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
             child: const Text('กลับหน้าหลัก'),
           ),

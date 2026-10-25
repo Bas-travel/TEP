@@ -138,8 +138,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   child: ListTile(
                     key: Key('notif-${n.id}'),
                     leading: CircleAvatar(
-                      backgroundColor: TepColors.navyBar.withValues(alpha: 0.10),
-                      child: Icon(_icon(n.type), color: TepColors.navyBar, size: 20),
+                      backgroundColor: TepColors.primary.withValues(alpha: 0.10),
+                      child: Icon(_icon(n.type), color: TepColors.primary, size: 20),
                     ),
                     title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w500 : FontWeight.w800)),
                     subtitle: Text('${n.message}\n${dmy(n.createdAt)}'),

@@ -21,7 +21,7 @@ class ProfileScreen extends StatelessWidget {
           child: Column(children: [
             CircleAvatar(
               radius: 40,
-              backgroundColor: TepColors.navyBar,
+              backgroundColor: TepColors.primary,
               child: Text((u?.firstName.isNotEmpty ?? false) ? u!.firstName.characters.first : '?', style: const TextStyle(color: Colors.white, fontSize: 32)),
             ),
             const SizedBox(height: 12),
@@ -41,7 +41,7 @@ class ProfileScreen extends StatelessWidget {
           child: Column(children: [
             ListTile(
               key: const Key('open-faq'),
-              leading: const Icon(Icons.help_outline_rounded, color: TepColors.navyBar),
+              leading: const Icon(Icons.help_outline_rounded, color: TepColors.primary),
               title: const Text('ศูนย์ช่วยเหลือ'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FaqScreen())),

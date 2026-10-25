@@ -1,6 +1,6 @@
 # ADR-004 — net/http for Sprint 1 (Gin deferred)
 
-Status: **Proposed** (needs owner confirmation) · Date: 2026-10-24 · Amends ADR-001
+Status: **Accepted** (owner confirmed 2026-10-25) · Date: 2026-10-24 · Amends ADR-001
 
 ## Context
 ADR-001 selects Go + Gin. The Sprint 1 build environment can reach GitHub but not `golang.org`, so Gin's

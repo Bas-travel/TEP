@@ -74,7 +74,7 @@ class MenuScreen extends StatelessWidget {
                 if (i > 0) const Divider(height: 1),
                 ListTile(
                   key: Key('menu-${entries[i].id}'),
-                  leading: Icon(entries[i].icon, color: TepColors.navyBar),
+                  leading: Icon(entries[i].icon, color: TepColors.primary),
                   title: Text(entries[i].label),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => _open(context, entries[i]),
@@ -153,7 +153,7 @@ class MessagesScreen extends StatelessWidget {
         const TepCard(
           padding: EdgeInsets.zero,
           child: ListTile(
-            leading: CircleAvatar(backgroundColor: TepColors.navyBar, child: Icon(Icons.support_agent_rounded, color: Colors.white)),
+            leading: CircleAvatar(backgroundColor: TepColors.primary, child: Icon(Icons.support_agent_rounded, color: Colors.white)),
             title: Text('ทีมงาน TEP', style: TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text('ยินดีต้อนรับ! หากมีคำถามเกี่ยวกับการจอง ส่งข้อความผ่านหน้า ติดต่อเรา ได้เลย'),
           ),

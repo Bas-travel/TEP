@@ -114,7 +114,7 @@ class ListingTile extends StatelessWidget {
               Row(children: [
                 Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: RatingChip(l.rating, l.reviewCount))),
                 const SizedBox(width: 8),
-                Text('เริ่ม ${thb(l.priceFrom)}', style: const TextStyle(color: TepColors.navyBar, fontWeight: FontWeight.w700)),
+                Text('เริ่ม ${thb(l.priceFrom)}', style: const TextStyle(color: TepColors.primary, fontWeight: FontWeight.w700)),
               ]),
             ]),
           ),

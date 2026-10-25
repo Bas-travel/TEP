@@ -1,4 +1,4 @@
-# apps/mobile-flutter — TEP Travel Super App (Sprint 1)
+# apps/mobile-flutter — Sabai jai Travel (Sprint 1)
 
 Flutter client that follows the product board (`docs/ux/board-mapping.md`). It talks to the backend only through
 `lib/data/api_client.dart`, with two interchangeable implementations:

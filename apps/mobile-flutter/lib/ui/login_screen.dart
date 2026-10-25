@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [TepColors.navy, TepColors.navyBar, TepColors.partner]),
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [TepColors.primaryDeep, TepColors.primary, TepColors.secondary]),
         ),
         child: SafeArea(
           child: Center(
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 56),
                   const SizedBox(height: 12),
-                  const Text('TRAVEL SUPER APP',
+                  const Text('SABAI JAI TRAVEL',
                       textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
                   const Text('แอปเดียวเที่ยวครบ จบทุกการเดินทาง',
                       textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 14)),

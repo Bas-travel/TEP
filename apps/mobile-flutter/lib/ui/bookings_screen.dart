@@ -71,7 +71,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                             Row(children: [
                               StatusBadge(b.status),
                               const Spacer(),
-                              Text(thb(b.amount), style: const TextStyle(fontWeight: FontWeight.w800, color: TepColors.navyBar)),
+                              Text(thb(b.amount), style: const TextStyle(fontWeight: FontWeight.w800, color: TepColors.primary)),
                             ]),
                           ]),
                         ),

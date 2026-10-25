@@ -69,7 +69,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       key: Key('post-${p.id}'),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
-                          CircleAvatar(radius: 16, backgroundColor: TepColors.navyBar, child: Text(p.authorId.replaceFirst('m_', '').characters.firstOrNull?.toUpperCase() ?? '?', style: const TextStyle(color: Colors.white, fontSize: 12))),
+                          CircleAvatar(radius: 16, backgroundColor: TepColors.primary, child: Text(p.authorId.replaceFirst('m_', '').characters.firstOrNull?.toUpperCase() ?? '?', style: const TextStyle(color: Colors.white, fontSize: 12))),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

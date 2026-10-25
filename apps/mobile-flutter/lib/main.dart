@@ -40,7 +40,7 @@ class _TepAppState extends State<TepApp> {
     return AppScope(
       session: _session,
       child: MaterialApp(
-        title: 'TEP Travel Super App',
+        title: 'Sabai jai Travel',
         debugShowCheckedModeBanner: false,
         theme: TepTheme.light(),
         home: ListenableBuilder(

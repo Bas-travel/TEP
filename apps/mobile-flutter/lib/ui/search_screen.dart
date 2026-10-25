@@ -121,7 +121,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _chip(String label, bool selected, VoidCallback onTap, {Key? key}) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: ChoiceChip(key: key, label: Text(label), selected: selected, onSelected: (_) => onTap(), selectedColor: TepColors.navyBar.withValues(alpha: 0.14)),
+        child: ChoiceChip(key: key, label: Text(label), selected: selected, onSelected: (_) => onTap(), selectedColor: TepColors.primary.withValues(alpha: 0.14)),
       );
 
   Widget _body() {

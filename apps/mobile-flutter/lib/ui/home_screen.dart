@@ -39,7 +39,7 @@ class HomeScreen extends StatelessWidget {
         child: ListView(padding: EdgeInsets.zero, children: [
           Container(
             decoration: const BoxDecoration(
-              color: TepColors.navy,
+              color: TepColors.primary,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
             ),
             padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 20),
@@ -100,7 +100,7 @@ class HomeScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: TepColors.line)),
-                            child: Icon(typeIcon(e.key), color: TepColors.navyBar),
+                            child: Icon(typeIcon(e.key), color: TepColors.primary),
                           ),
                           const SizedBox(height: 6),
                           Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),

@@ -74,7 +74,7 @@ class _TripsScreenState extends State<TripsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('plan-with-ai'),
         onPressed: _openPlanner,
-        backgroundColor: TepColors.navyBar,
+        backgroundColor: TepColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.auto_awesome_rounded),
         label: const Text('วางแผนด้วย AI'),
@@ -96,7 +96,7 @@ class _TripsScreenState extends State<TripsScreen> {
                   key: Key('trip-${t.id}'),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TripDetailScreen(trip: t))),
                   child: Row(children: [
-                    const Icon(Icons.luggage_rounded, color: TepColors.navyBar),
+                    const Icon(Icons.luggage_rounded, color: TepColors.primary),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

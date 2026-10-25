@@ -63,7 +63,7 @@ class ListingDetailScreen extends StatelessWidget {
               child: Row(children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                   const Text('เริ่มต้น', style: TextStyle(color: TepColors.muted, fontSize: 12)),
-                  Text(thb(l.priceFrom), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: TepColors.navyBar)),
+                  Text(thb(l.priceFrom), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: TepColors.primary)),
                 ]),
                 const SizedBox(width: 20),
                 Expanded(

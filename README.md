@@ -1,4 +1,4 @@
-# TEP — แอพท่องเที่ยวครบวงจร (Sabai Travel)
+# TEP — แอพท่องเที่ยวครบวงจร (Sabai jai Travel)
 
 Repository: [Bas-travel/TEP](https://github.com/Bas-travel/TEP.git)
 

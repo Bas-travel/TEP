@@ -20,7 +20,7 @@ LinearGradient gradientFromCss(String css) {
       .map((m) => Color(int.parse('FF${m.group(1)}', radix: 16)))
       .toList();
   if (colors.length < 2) {
-    return const LinearGradient(colors: [Color(0xFF002765), Color(0xFF3988A2)]);
+    return const LinearGradient(colors: [Color(0xFF9A3412), Color(0xFFFB923C)]);
   }
   return LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors);
 }

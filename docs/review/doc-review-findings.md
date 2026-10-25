@@ -30,7 +30,7 @@ Status legend: **FIXED** (changed in this branch) · **OPEN** (needs a decision 
 | B8 | `BookingSummary.status` enum is `confirmed/completed/cancelled` but booking draft + payment pending state is implied by `POST /bookings` ("draft") → no `pending_payment` state. | FIXED (added `pending_payment`) |
 | B9 | `UserSettings.language` + profile `language` duplicated; `theme` has `system`, prototype only light/dark. | OPEN (low) |
 | B10 | Servers use placeholder `api.example.com` domains. | OPEN (needs real domains) |
-| B11 | Brand naming: README "Sabai Travel", board "Travel Super App". | OPEN (owner decision; code uses `TEP Travel Super App`) |
+| B11 | Brand naming: README "Sabai Travel", board "Travel Super App". | FIXED — owner decision 2026-10-25: **Sabai jai Travel** (repo/code name stays `TEP`) |
 
 ## C. Authentication / security consistency
 
@@ -67,9 +67,9 @@ Re-ran structural checks (YAML parse, `$ref` resolution, per-operation response 
 | R2-4 | `UserProfile` was `allOf RegisterRequest`, so `GET /me` advertised a required `password` field. | FIXED (explicit schema, no password; `avatarUrl` added for board screen 1.20) |
 | R2-5 | `ListingSummary` has no thumbnail but the board's list screens (1.3, 1.12, 1.14) show images. | FIXED (`imageUrl`) |
 | R2-6 | `Problem` had no `required` fields; clients cannot rely on `code`. | FIXED |
-| R2-7 | **Design tokens conflict.** `screen-inventory.md` documents pine `#10403D` / amber `#E3A23C` / Fraunces (old React prototype). The "Travel Super App" board uses navy `#002765`-`#082D66`, teal `#23925D` success, light `#F4F8FC` background. | DECISION: Flutter follows the board (see `docs/ux/board-mapping.md`); old tokens kept as legacy reference. Needs owner confirmation. |
+| R2-7 | **Design tokens conflict.** `screen-inventory.md` documents pine `#10403D` / amber `#E3A23C` / Fraunces (old React prototype). The "Travel Super App" board uses navy `#002765`-`#082D66`, teal `#23925D` success, light `#F4F8FC` background. | SUPERSEDED — owner chose theme **Sunset Journey** on 2026-10-25 (see `docs/ux/design-tokens.md`). Board navy palette and old pine/amber tokens are legacy. |
 | R2-8 | Migration file `0001_init.up.sql` is referenced by `erd.md` as authoritative DDL but did not exist. | FIXED in Sprint 1 (`services/api-go/migrations/`) |
-| R2-9 | ADR-001 specifies Gin. `golang.org/x/*` modules cannot be fetched in the build sandbox, so Gin cannot be compiled there. | DECISION: ADR-004 (net/http in Sprint 1, handlers framework-agnostic). Needs owner confirmation. |
+| R2-9 | ADR-001 specifies Gin. `golang.org/x/*` modules cannot be fetched in the build sandbox, so Gin cannot be compiled there. | DECISION: ADR-004 (net/http in Sprint 1, handlers framework-agnostic). ACCEPTED by owner 2026-10-25. |
 | R2-10 | Board lists WebSocket real-time and Stripe/PromptPay; docs defer WebSocket (live chat) and have PSP behind mock adapter. | Consistent with `mvp-scope.md`; no change. |
 
 Still NOT verified: OpenAPI validated by a real validator (none installable offline); Flutter code could not be compiled in the sandbox (see Sprint 1 report).

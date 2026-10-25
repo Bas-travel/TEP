@@ -3,7 +3,7 @@ info:
   title: TEP Travel API
   version: 0.1.0
   description: |
-    Sabai Travel / TEP — Go + Gin backend contract.
+    Sabai jai Travel / TEP — backend contract (Go; net/http in Sprint 1, see ADR-004).
     DEV may use mock adapters; BETA/PROD use MySQL + Redis + object storage.
 servers:
   - url: https://api.beta.example.com/v1
