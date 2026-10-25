@@ -90,6 +90,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /v1/wallet", s.authed(s.getWallet))
 	m.HandleFunc("POST /v1/wallet/top-ups", s.authed(s.topUp))
 
+	s.engageRoutes(m)
+
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { httpx.NotFound(w, r) })
 	return m
 }

@@ -44,6 +44,8 @@ type store struct {
 	intents                                   map[string]*intentRec
 	idem                                      map[string]idemRec
 	nextUser, nextBooking, nextTx, nextIntent int64
+	extras                                    map[int64]*userExtra
+	engageSeq                                 int64
 }
 
 func newStore() *store {

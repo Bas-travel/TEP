@@ -19,6 +19,7 @@ func (s *Server) seedDemo() {
 	now := s.now()
 	u.Txs = append(u.Txs, WalletTx{ID: s.st.nextTx, Direction: "in", Label: "เติมเงิน PromptPay", Amount: 1500, CreatedAt: now.Add(-48 * time.Hour)})
 	s.st.nextTx++
+	s.seedEngage(u.ID)
 }
 
 func (s *Server) createUser(req RegisterRequest) (*userRec, error) {
