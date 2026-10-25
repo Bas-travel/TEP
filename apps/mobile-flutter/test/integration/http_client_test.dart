@@ -32,6 +32,20 @@ void main() {
       await expectLater(api.login('demo@tep.dev', 'nope'), throwsA(isA<ApiException>().having((e) => e.code, 'code', 'AUTH_UNAUTHENTICATED')));
     });
 
+    test('booking round-trips startDate / endDate / guests and rejects a past date', () async {
+      await api.login('demo@tep.dev', 'Passw0rd!');
+      final start = DateTime.now().add(const Duration(days: 5));
+      final b = await api.createBooking(
+          lines: [const BookingLine(1, 1)], startDate: start, endDate: start.add(const Duration(days: 2)), guests: 2, idempotencyKey: 'it-dates-${DateTime.now().microsecondsSinceEpoch}');
+      final read = await api.booking(b.id);
+      expect(read.guests, 2);
+      expect(read.startDate, isNotNull);
+      expect(read.endDate, isNotNull);
+      await expectLater(
+          api.createBooking(lines: [const BookingLine(1, 1)], startDate: DateTime.now().subtract(const Duration(days: 4)), idempotencyKey: 'it-past-${DateTime.now().microsecondsSinceEpoch}'),
+          throwsA(isA<ApiException>().having((e) => e.status, 'status', 422)));
+    });
+
     test('book → pay with wallet → cancel → refund (full journey)', () async {
       await api.login('demo@tep.dev', 'Passw0rd!');
       expect((await api.me()).email, 'demo@tep.dev');

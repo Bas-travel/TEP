@@ -92,4 +92,23 @@ void main() {
     await api.topUp(500);
     expect((await api.wallet()).balance, 2000);
   });
+  test('booking keeps start/end date and guests; rejects past dates and bad guests', () async {
+    final api = fresh();
+    await api.login('demo@tep.dev', 'Passw0rd!');
+    final start = DateTime.now().add(const Duration(days: 3));
+    final end = start.add(const Duration(days: 2));
+    final b = await api.createBooking(lines: const [BookingLine(1, 1)], startDate: start, endDate: end, guests: 3, idempotencyKey: 'k-dates');
+    expect(b.guests, 3);
+    expect(b.startDate, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
+    expect(b.endDate, isNotNull);
+    final again = await api.booking(b.id);
+    expect(again.startDate, b.startDate);
+    expect(again.guests, 3);
+
+    Future<void> expectField(Future<BookingDetail> f, String field) => expectLater(
+        f, throwsA(isA<ApiException>().having((e) => e.status, 'status', 422).having((e) => e.errors.map((x) => x.field), 'fields', contains(field))));
+    await expectField(api.createBooking(lines: const [BookingLine(1, 1)], startDate: DateTime.now().subtract(const Duration(days: 3)), idempotencyKey: 'k-past'), 'startDate');
+    await expectField(api.createBooking(lines: const [BookingLine(1, 1)], startDate: end, endDate: start, idempotencyKey: 'k-order'), 'endDate');
+    await expectField(api.createBooking(lines: const [BookingLine(1, 1)], guests: 21, idempotencyKey: 'k-guests'), 'guests');
+  });
 }

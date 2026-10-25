@@ -89,6 +89,9 @@ type BookingSummary struct {
 	Method        string    `json:"method"`
 	Date          time.Time `json:"date"`
 	Status        string    `json:"status"`
+	StartDate     string    `json:"startDate,omitempty"` // YYYY-MM-DD (stay / visit / departure date)
+	EndDate       string    `json:"endDate,omitempty"`   // YYYY-MM-DD, optional (check-out / return)
+	Guests        int       `json:"guests"`
 }
 
 type BookingDetail struct {
@@ -104,6 +107,9 @@ type CreateBookingRequest struct {
 		ListingID int64 `json:"listingId"`
 		Quantity  int   `json:"quantity"`
 	} `json:"lines"`
+	StartDate   string `json:"startDate,omitempty"`
+	EndDate     string `json:"endDate,omitempty"`
+	Guests      int    `json:"guests,omitempty"`
 	CouponCode  string `json:"couponCode,omitempty"`
 	TripPackage *struct {
 		Title    string  `json:"title"`

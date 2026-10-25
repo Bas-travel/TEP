@@ -27,6 +27,8 @@ Requirement IDs trace to [../ux/screen-inventory.md](../ux/screen-inventory.md).
 | service_fee | Prototype uses ~5% | REQ-PAY-01 |
 | status | confirmed, completed, cancelled | REQ-BKG-04 |
 | refund_amount | Wallet refund on cancel | REQ-BKG-05 |
+| start_date / end_date | Stay / visit dates (DATE, no time zone); end optional, never before start (CHECK) | REQ-BKG-02 |
+| guests | Travellers on the booking, 1..20 (CHECK), default 1 | REQ-BKG-02 |
 
 ## wallet_accounts / wallet_transactions
 

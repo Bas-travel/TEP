@@ -22,7 +22,14 @@ abstract class ApiClient {
 
   Future<List<BookingSummary>> bookings({String? status});
   Future<BookingDetail> booking(int id);
-  Future<BookingDetail> createBooking({required List<BookingLine> lines, String? couponCode, required String idempotencyKey});
+  Future<BookingDetail> createBooking({
+    required List<BookingLine> lines,
+    String? couponCode,
+    DateTime? startDate,
+    DateTime? endDate,
+    int guests = 1,
+    required String idempotencyKey,
+  });
   Future<BookingDetail> cancelBooking(int id, String reason);
 
   Future<PaymentIntent> createIntent({required int bookingId, required String method, required String idempotencyKey});

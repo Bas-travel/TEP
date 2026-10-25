@@ -23,7 +23,11 @@ enum _Step { details, payment, success }
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
   _Step _step = _Step.details;
   DateTime _date = DateTime.now().add(const Duration(days: 7));
+  late DateTime _endDate = _date.add(const Duration(days: 1)); // hotels only (check-out)
   int _qty = 1;
+  int _guests = 1;
+
+  bool get _isHotel => widget.listing.type == 'hotel';
   final _coupon = TextEditingController();
   String _method = 'promptpay';
   bool _busy = false;
@@ -47,7 +51,22 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (d != null) setState(() => _date = d);
+    if (d != null) {
+      setState(() {
+        _date = d;
+        if (!_endDate.isAfter(_date)) _endDate = _date.add(const Duration(days: 1));
+      });
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: _date.add(const Duration(days: 1)),
+      lastDate: _date.add(const Duration(days: 60)),
+    );
+    if (d != null) setState(() => _endDate = d);
   }
 
   Future<void> _createBooking() async {
@@ -55,7 +74,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     setState(() => _busy = true);
     final b = await guarded(
       context,
-      () => api.createBooking(lines: [BookingLine(widget.listing.id, _qty)], couponCode: _coupon.text.trim(), idempotencyKey: _bookingKey),
+      () => api.createBooking(
+        lines: [BookingLine(widget.listing.id, _qty)],
+        couponCode: _coupon.text.trim(),
+        startDate: _date,
+        endDate: _isHotel ? _endDate : null,
+        guests: _guests,
+        idempotencyKey: _bookingKey,
+      ),
     );
     if (!mounted) return;
     setState(() {
@@ -134,10 +160,34 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             Text(dmy(_date), style: const TextStyle(fontWeight: FontWeight.w700)),
           ]),
         ),
+        if (_isHotel) ...[
+          const SizedBox(height: 12),
+          TepCard(
+            key: const Key('end-date'),
+            onTap: _pickEndDate,
+            child: Row(children: [
+              const Icon(Icons.event_available_rounded, color: TepColors.primary),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('วันเช็คเอาต์')),
+              Text(dmy(_endDate), style: const TextStyle(fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ],
         const SizedBox(height: 12),
         TepCard(
           child: Row(children: [
             const Icon(Icons.group_rounded, color: TepColors.primary),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('ผู้เดินทาง')),
+            IconButton(key: const Key('guests-minus'), onPressed: _guests > 1 ? () => setState(() => _guests--) : null, icon: const Icon(Icons.remove_circle_outline)),
+            Text('$_guests', key: const Key('guests'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            IconButton(key: const Key('guests-plus'), onPressed: _guests < 20 ? () => setState(() => _guests++) : null, icon: const Icon(Icons.add_circle_outline)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        TepCard(
+          child: Row(children: [
+            const Icon(Icons.confirmation_number_outlined, color: TepColors.primary),
             const SizedBox(width: 12),
             const Expanded(child: Text('จำนวน')),
             IconButton(key: const Key('qty-minus'), onPressed: _qty > 1 ? () => setState(() => _qty--) : null, icon: const Icon(Icons.remove_circle_outline)),

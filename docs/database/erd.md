@@ -99,6 +99,9 @@ erDiagram
     varchar booking_number UK
     bigint user_id FK
     enum status
+    date start_date
+    date end_date
+    smallint guests
     decimal subtotal
     decimal service_fee
     decimal total

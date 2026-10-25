@@ -96,6 +96,7 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 			subtotal, title, subtitle, typ = req.TripPackage.Price, req.TripPackage.Title, req.TripPackage.Subtitle, "trip"
 		}
 	}
+	start, end, guests := s.validateTrip(req, &errs)
 	var discount float64
 	if c := strings.ToUpper(strings.TrimSpace(req.CouponCode)); c != "" {
 		if c != "WELCOME10" || subtotal < 1000 {
@@ -116,7 +117,7 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 	s.st.nextBooking++
 	b := &bookingRec{UserID: uid, BookingDetail: BookingDetail{
 		BookingSummary: BookingSummary{ID: id, BookingNumber: s.st.bookingNumber(id, now), Type: typ, Title: title, Subtitle: subtitle,
-			Amount: total, Date: now, Status: "pending_payment"},
+			Amount: total, Date: now, Status: "pending_payment", StartDate: start, EndDate: end, Guests: guests},
 		Subtotal: round2(subtotal), ServiceFee: fee}}
 	s.st.bookings[id] = b
 	d := b.BookingDetail
@@ -289,4 +290,44 @@ func (s *Server) topUp(w http.ResponseWriter, r *http.Request, uid int64) {
 	out := pi.PaymentIntent
 	s.st.mu.Unlock()
 	httpx.WriteJSON(w, 202, out)
+}
+
+// validateTrip checks the optional stay/visit dates and guest count of a booking request (finding F-1).
+// Dates are calendar dates (YYYY-MM-DD) interpreted in the server's local zone; the start may not be in the past.
+func (s *Server) validateTrip(req CreateBookingRequest, errs *[]httpx.FieldError) (start, end string, guests int) {
+	const layout = "2006-01-02"
+	guests = req.Guests
+	if guests == 0 {
+		guests = 1
+	}
+	if guests < 1 || guests > 20 {
+		*errs = append(*errs, httpx.FieldError{Field: "guests", Message: "must be 1..20"})
+	}
+	today := s.now().Format(layout)
+	var sd, ed time.Time
+	var err error
+	if req.StartDate != "" {
+		if sd, err = time.Parse(layout, req.StartDate); err != nil {
+			*errs = append(*errs, httpx.FieldError{Field: "startDate", Message: "must be a date YYYY-MM-DD"})
+		} else if req.StartDate < today {
+			*errs = append(*errs, httpx.FieldError{Field: "startDate", Message: "must not be in the past"})
+		} else {
+			start = req.StartDate
+		}
+	}
+	if req.EndDate != "" {
+		switch {
+		case req.StartDate == "":
+			*errs = append(*errs, httpx.FieldError{Field: "endDate", Message: "startDate is required when endDate is given"})
+		default:
+			if ed, err = time.Parse(layout, req.EndDate); err != nil {
+				*errs = append(*errs, httpx.FieldError{Field: "endDate", Message: "must be a date YYYY-MM-DD"})
+			} else if start != "" && ed.Before(sd) {
+				*errs = append(*errs, httpx.FieldError{Field: "endDate", Message: "must not be before startDate"})
+			} else {
+				end = req.EndDate
+			}
+		}
+	}
+	return start, end, guests
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../core/format.dart';
 import 'api_client.dart';
 import 'models.dart';
 import 'models_engage.dart';
@@ -125,9 +126,22 @@ class HttpApiClient implements ApiClient {
   Future<BookingDetail> booking(int id) async => BookingDetail.fromJson(await _call('GET', _uri('/bookings/$id')));
 
   @override
-  Future<BookingDetail> createBooking({required List<BookingLine> lines, String? couponCode, required String idempotencyKey}) async {
+  Future<BookingDetail> createBooking({
+    required List<BookingLine> lines,
+    String? couponCode,
+    DateTime? startDate,
+    DateTime? endDate,
+    int guests = 1,
+    required String idempotencyKey,
+  }) async {
     final j = await _call('POST', _uri('/bookings'),
-        body: {'lines': lines.map((l) => l.toJson()).toList(), if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode},
+        body: {
+          'lines': lines.map((l) => l.toJson()).toList(),
+          if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+          if (startDate != null) 'startDate': isoDate(startDate),
+          if (endDate != null) 'endDate': isoDate(endDate),
+          'guests': guests,
+        },
         headers: {'Idempotency-Key': idempotencyKey});
     return BookingDetail.fromJson(j);
   }

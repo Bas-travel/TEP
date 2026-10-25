@@ -140,9 +140,16 @@ class BookingSummary {
     required this.method,
     required this.date,
     required this.status,
+    this.startDate,
+    this.endDate,
+    this.guests = 1,
   });
   final int id;
   final String bookingNumber, type, title, subtitle, method, status;
+
+  /// Stay / visit dates (calendar dates, `YYYY-MM-DD` on the wire) and number of travellers — finding F-1.
+  final String? startDate, endDate;
+  final int guests;
   final double amount;
   final DateTime date;
   factory BookingSummary.fromJson(Map<String, Object?> j) => BookingSummary(
@@ -155,6 +162,9 @@ class BookingSummary {
         method: j['method'] as String? ?? '',
         date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
         status: j['status'] as String? ?? '',
+        startDate: j['startDate'] as String?,
+        endDate: j['endDate'] as String?,
+        guests: (j['guests'] as num?)?.toInt() ?? 1,
       );
 }
 
@@ -169,6 +179,9 @@ class BookingDetail extends BookingSummary {
     required super.method,
     required super.date,
     required super.status,
+    super.startDate,
+    super.endDate,
+    super.guests,
     required this.subtotal,
     required this.serviceFee,
     this.cancelReason,
@@ -189,6 +202,9 @@ class BookingDetail extends BookingSummary {
       method: s.method,
       date: s.date,
       status: s.status,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      guests: s.guests,
       subtotal: _d(j['subtotal']),
       serviceFee: _d(j['serviceFee']),
       cancelReason: j['cancelReason'] as String?,

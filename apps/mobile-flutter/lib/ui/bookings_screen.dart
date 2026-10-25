@@ -136,6 +136,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               Text(b.subtitle, style: const TextStyle(color: TepColors.muted)),
               const Divider(height: 28),
               _kv('วันที่จอง', dmy(b.date)),
+              if (b.startDate != null) _kv('วันที่ใช้บริการ', _stay(b.startDate!, b.endDate)),
+              _kv('ผู้เดินทาง', '${b.guests} คน'),
               _kv('วิธีชำระเงิน', b.method.isEmpty ? '-' : b.method),
               _kv('ราคา', thb(b.subtotal)),
               _kv('ค่าบริการ', thb(b.serviceFee)),
@@ -168,4 +170,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           Flexible(child: Text(v, textAlign: TextAlign.end, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w600))),
         ]),
       );
+}
+
+/// `2026-11-01` (+ optional end) → `01/11/2026 – 03/11/2026` using the shared date format.
+String _stay(String start, String? end) {
+  String f(String iso) {
+    final d = DateTime.tryParse(iso);
+    return d == null ? iso : dmy(d);
+  }
+
+  return end == null ? f(start) : '${f(start)} – ${f(end)}';
 }

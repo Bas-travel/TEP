@@ -79,7 +79,7 @@ Still NOT verified: OpenAPI validated by a real validator (none installable offl
 
 | # | Finding | Status |
 |---|---------|--------|
-| F-1 | **No stay/visit date or guest count in `POST /bookings`.** Board screens 1.5–1.7 (choose date, guests) cannot be persisted: `BookingLine` has only `listingId` + `quantity`. The Flutter UI collects the date but does not send it. | OPEN → proposal: add `startDate`, `endDate?` (date), `guests` to the booking line + `booking_line_items` columns; needs owner decision before Sprint 3 |
+| F-1 | **No stay/visit date or guest count in `POST /bookings`.** Board screens 1.5–1.7 (choose date, guests) cannot be persisted: `BookingLine` has only `listingId` + `quantity`. The Flutter UI collects the date but does not send it. | FIXED 2026-10-25 — booking-level `startDate`, `endDate?`, `guests` (1..20) in OpenAPI, migration `0003`, Go validation and Flutter UI (chosen over per-line fields: one trip date per booking in the MVP) |
 | F-2 | No media/image API: listing/destination have no image; board shows photos. UI uses typed gradient thumbnails and honours optional `imageUrl`. | OPEN (MinIO + signed URLs, Sprint 4+) |
 | F-3 | Booking number format differs: API `TEP-yyMMdd-00001`; mock used `TEP-yyyy-00001`. | FIXED (mock aligned) |
 | F-4 | Timestamps are emitted with nanoseconds and the server's local offset (`2026-10-25T03:06:10.423782765+07:00`). Dart parses it, but contract should be RFC 3339 UTC with milliseconds. | OPEN (low) — change in `httpx`/types when DB mode lands |

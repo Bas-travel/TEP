@@ -1,3 +1,4 @@
+import '../core/format.dart';
 import 'api_client.dart';
 import 'mock_engage.dart';
 import 'mock_fixtures.dart';
@@ -128,13 +129,30 @@ class MockApiClient with MockEngage implements ApiClient {
       });
 
   @override
-  Future<BookingDetail> createBooking({required List<BookingLine> lines, String? couponCode, required String idempotencyKey}) => _t(() {
+  Future<BookingDetail> createBooking({
+    required List<BookingLine> lines,
+    String? couponCode,
+    DateTime? startDate,
+    DateTime? endDate,
+    int guests = 1,
+    required String idempotencyKey,
+  }) =>
+      _t(() {
         _requireAuth();
         final prior = _idem['b|$idempotencyKey'];
         if (prior is BookingDetail) return prior;
         if (lines.isEmpty) {
           throw const ApiException(status: 422, code: 'VALIDATION_FAILED', title: 'Validation failed', errors: [FieldError('lines', 'at least one line required')]);
         }
+        final errs = <FieldError>[];
+        if (guests < 1 || guests > 20) errs.add(const FieldError('guests', 'must be 1..20'));
+        final today = DateTime(_now().year, _now().month, _now().day);
+        if (startDate != null && DateTime(startDate.year, startDate.month, startDate.day).isBefore(today)) {
+          errs.add(const FieldError('startDate', 'must not be in the past'));
+        }
+        if (endDate != null && startDate == null) errs.add(const FieldError('endDate', 'startDate is required when endDate is given'));
+        if (endDate != null && startDate != null && endDate.isBefore(startDate)) errs.add(const FieldError('endDate', 'must not be before startDate'));
+        if (errs.isNotEmpty) throw ApiException(status: 422, code: 'VALIDATION_FAILED', title: 'Validation failed', errors: errs);
         var subtotal = 0.0;
         ListingDetail? first;
         for (final ln in lines) {
@@ -168,6 +186,9 @@ class MockApiClient with MockEngage implements ApiClient {
           method: '',
           date: now,
           status: 'pending_payment',
+          startDate: startDate == null ? null : isoDate(startDate),
+          endDate: endDate == null ? null : isoDate(endDate),
+          guests: guests,
           subtotal: _r2(subtotal),
           serviceFee: fee,
         );
@@ -187,6 +208,9 @@ class MockApiClient with MockEngage implements ApiClient {
       method: method ?? b.method,
       date: b.date,
       status: status ?? b.status,
+      startDate: b.startDate,
+      endDate: b.endDate,
+      guests: b.guests,
       subtotal: b.subtotal,
       serviceFee: b.serviceFee,
       cancelReason: reason ?? b.cancelReason,

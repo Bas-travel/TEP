@@ -48,3 +48,6 @@ const statusLabels = {
   'completed': 'เสร็จสิ้น',
   'cancelled': 'ยกเลิกแล้ว',
 };
+
+/// Calendar date as sent to the API (`YYYY-MM-DD`, no time zone).
+String isoDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
