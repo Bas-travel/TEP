@@ -65,3 +65,20 @@ Requirement IDs trace to [../ux/screen-inventory.md](../ux/screen-inventory.md).
 ## support_tickets
 
 | subject, message | User-submitted help | REQ-SUP-01 |
+
+## Migration 0004 — persistence (API_MODE=db)
+
+| Change | Description | REQ |
+|--------|-------------|-----|
+| users.handle | Public member id used by the community API (`m_<id>`, unique); backfilled for existing rows | REQ-COM-01 |
+| user_profiles.bio | Member bio (≤200) | REQ-COM-04 |
+| bookings.item_type | hotel / restaurant / flight / attraction / trip | REQ-BKG-01 |
+| idempotency_keys.response_body | MEDIUMTEXT (exact bytes are replayed; JSON type would re-normalise) | REQ-PAY-02 |
+| community_groups.rules, uk_group_name | Group rules (JSON) and unique group name (seed upsert) | REQ-COM-03 |
+| community_comments.body | VARCHAR(1000) | REQ-COM-01 |
+| post_hides | Per-user "hide this post" | REQ-COM-01 |
+| ix_comment_post, ix_post_feed, ix_post_dest | Feed / comment lookups (`ix_comment_post` replaces the FK's implicit index; the down migration restores it) | — |
+
+Storage notes: timestamps are UTC `DATETIME` (the DSN forces `parseTime=true&loc=UTC`, session `time_zone='+00:00'`);
+refresh tokens are stored as SHA-256 in `user_sessions` (`revoked_at` marks a spent token → reuse revokes every session);
+`community_posts.like_count` is maintained on toggle; account deletion anonymises the user and keeps bookings / payments / wallet rows.
