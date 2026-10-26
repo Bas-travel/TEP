@@ -3,7 +3,10 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"math"
 	"net/http"
@@ -21,22 +24,75 @@ type Check func(ctx context.Context) error
 
 type Server struct {
 	cfg         config.Config
-	st          *store
+	repo        Repo
 	log         *slog.Logger
 	now         func() time.Time
 	checks      map[string]Check
-	settleAfter time.Duration // mock PSP: how long a pending intent stays pending
+	settleAfter time.Duration // mock PSP (MOCK_PAYMENT=true): how long a pending intent stays pending
 }
 
-func New(cfg config.Config, log *slog.Logger, checks map[string]Check) *Server {
-	s := &Server{cfg: cfg, st: newStore(), log: log, now: time.Now, checks: checks, settleAfter: 3 * time.Second}
+// Option customises New.
+type Option func(*Server)
+
+// WithRepo selects the storage backend (default: in-memory, for API_MODE=mock and unit tests).
+func WithRepo(r Repo) Option { return func(s *Server) { s.repo = r } }
+
+func New(cfg config.Config, log *slog.Logger, checks map[string]Check, opts ...Option) *Server {
+	s := &Server{cfg: cfg, repo: newMemRepo(), log: log, now: time.Now, checks: checks, settleAfter: 3 * time.Second}
+	for _, o := range opts {
+		o(s)
+	}
 	if cfg.AppEnv == "dev" {
-		s.seedDemo()
+		if err := s.seedDemo(context.Background()); err != nil {
+			log.Error("demo seed failed", "err", err)
+		}
 	}
 	return s
 }
 
 func round2(x float64) float64 { return math.Round(x*100) / 100 }
+
+// apiErr is a business error: returning it from a Tx function undoes the transaction and is rendered as RFC 7807.
+type apiErr struct {
+	Status      int
+	Code, Title string
+	Detail      string
+	Errors      []httpx.FieldError
+}
+
+func (e *apiErr) Error() string { return e.Code + ": " + e.Detail }
+
+func invalid(errs ...httpx.FieldError) *apiErr {
+	return &apiErr{Status: 422, Code: httpx.CodeValidation, Title: "Validation failed", Detail: "one or more fields are invalid", Errors: errs}
+}
+func conflict(detail string) *apiErr {
+	return &apiErr{Status: 409, Code: httpx.CodeConflict, Title: "Conflict", Detail: detail}
+}
+func forbidden(detail string) *apiErr {
+	return &apiErr{Status: 403, Code: httpx.CodeForbidden, Title: "Forbidden", Detail: detail}
+}
+
+// fail renders err (if any) and reports whether it did. Unknown errors are logged and returned as 500 without detail.
+func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) bool {
+	if err == nil {
+		return false
+	}
+	var ae *apiErr
+	switch {
+	case errors.As(err, &ae):
+		httpx.WriteProblem(w, r, ae.Status, ae.Code, ae.Title, ae.Detail, ae.Errors...)
+	case errors.Is(err, ErrNotFound):
+		httpx.NotFound(w, r)
+	case errors.Is(err, ErrForbidden):
+		httpx.WriteProblem(w, r, 403, httpx.CodeForbidden, "Forbidden", "not allowed")
+	case errors.Is(err, ErrInsufficient):
+		httpx.WriteProblem(w, r, 402, httpx.CodeWalletShort, "Payment Required", "wallet balance is insufficient")
+	default:
+		s.log.Error("request failed", "request_id", httpx.RequestID(r), "path", r.URL.Path, "err", err)
+		httpx.WriteProblem(w, r, 500, httpx.CodeInternal, "Internal Server Error", "")
+	}
+	return true
+}
 
 type authedHandler func(w http.ResponseWriter, r *http.Request, uid int64)
 
@@ -52,11 +108,15 @@ func (s *Server) authed(h authedHandler) http.HandlerFunc {
 			httpx.Unauthorized(w, r, "invalid or expired access token")
 			return
 		}
-		s.st.mu.Lock()
-		_, ok := s.st.users[c.Sub]
-		s.st.mu.Unlock()
-		if !ok {
+		err = s.repo.Tx(r.Context(), func(tx Tx) error {
+			_, e := tx.UserByID(c.Sub, false)
+			return e
+		})
+		if errors.Is(err, ErrNotFound) {
 			httpx.Unauthorized(w, r, "unknown user")
+			return
+		}
+		if s.fail(w, r, err) {
 			return
 		}
 		h(w, r, c.Sub)
@@ -73,7 +133,9 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/auth/login", s.login)
 	m.HandleFunc("POST /v1/auth/refresh", s.refreshTokens)
 	m.HandleFunc("POST /v1/auth/logout", s.authed(s.logout))
+	m.HandleFunc("PUT /v1/auth/password", s.authed(s.changePassword))
 	m.HandleFunc("GET /v1/me", s.authed(s.getMe))
+	m.HandleFunc("DELETE /v1/me", s.authed(s.deleteMe))
 
 	m.HandleFunc("GET /v1/catalog/destinations", s.listDestinations)
 	m.HandleFunc("GET /v1/catalog/listings", s.searchListings)
@@ -90,7 +152,12 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /v1/wallet", s.authed(s.getWallet))
 	m.HandleFunc("POST /v1/wallet/top-ups", s.authed(s.topUp))
 
+	m.HandleFunc("POST /v1/webhooks/payments/{provider}", s.paymentWebhook)
+	m.HandleFunc("POST /v1/devices/push-tokens", s.authed(s.registerPushToken))
+	m.HandleFunc("POST /v1/media/presign", s.authed(s.presignUpload))
+
 	s.engageRoutes(m)
+	s.communityRoutes(m)
 
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { httpx.NotFound(w, r) })
 	return m
@@ -129,39 +196,69 @@ func pathID(r *http.Request, name string) (int64, bool) {
 	return v, err == nil && v > 0
 }
 
-func (s *Server) idemKey(r *http.Request, uid int64, endpoint string) string {
-	k := r.Header.Get("Idempotency-Key")
+// hashKey maps an opaque client value (idempotency key, refresh token) to a fixed-width hex digest for storage.
+func hashKey(k string) string {
 	if k == "" {
 		return ""
 	}
-	return strconv.FormatInt(uid, 10) + "|" + endpoint + "|" + k
+	h := sha256.Sum256([]byte(k))
+	return hex.EncodeToString(h[:])
 }
 
-// replay writes a stored idempotent response if present.
-func (s *Server) replay(w http.ResponseWriter, key string) bool {
-	if key == "" {
-		return false
+// idempotent runs fn in a transaction. With an Idempotency-Key header the response is stored in the same transaction,
+// so a retry (or a concurrent duplicate) replays it instead of repeating the side effect.
+// fn returns the HTTP status and body; returning an error (e.g. *apiErr) rolls back and stores nothing.
+func (s *Server) idempotent(w http.ResponseWriter, r *http.Request, uid int64, endpoint string, fn func(Tx) (int, any, error)) {
+	key := hashKey(r.Header.Get("Idempotency-Key"))
+	if len(r.Header.Get("Idempotency-Key")) > 200 {
+		httpx.Invalid(w, r, fe("Idempotency-Key", "max 200 characters"))
+		return
 	}
-	s.st.mu.Lock()
-	rec, ok := s.st.idem[key]
-	s.st.mu.Unlock()
-	if !ok {
-		return false
+	for attempt := 0; attempt < 2; attempt++ {
+		var replay *idemRec
+		var status int
+		var body any
+		err := s.repo.Tx(r.Context(), func(tx Tx) error {
+			replay, status, body = nil, 0, nil
+			if key != "" {
+				rec, e := tx.GetIdem(uid, endpoint, key)
+				if e == nil {
+					replay = rec
+					return nil
+				}
+				if !errors.Is(e, ErrNotFound) {
+					return e
+				}
+			}
+			st, b, e := fn(tx)
+			if e != nil {
+				return e
+			}
+			status, body = st, b
+			if key == "" {
+				return nil
+			}
+			raw, e := json.Marshal(b)
+			if e != nil {
+				return e
+			}
+			return tx.PutIdem(uid, endpoint, key, idemRec{Status: st, Body: append(raw, '\n')}, s.now())
+		})
+		if key != "" && errors.Is(err, ErrDuplicate) {
+			continue // a concurrent request with the same key won: replay its response on the next attempt
+		}
+		if s.fail(w, r, err) {
+			return
+		}
+		if replay != nil {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Header().Set("Idempotent-Replay", "true")
+			w.WriteHeader(replay.Status)
+			_, _ = w.Write(replay.Body)
+			return
+		}
+		httpx.WriteJSON(w, status, body)
+		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Idempotent-Replay", "true")
-	w.WriteHeader(rec.Status)
-	_, _ = w.Write(rec.Body)
-	return true
-}
-
-// respondIdem writes v as JSON and records it under key (if any). Caller must not hold st.mu.
-func (s *Server) respondIdem(w http.ResponseWriter, key string, status int, v any) {
-	if key != "" {
-		b, _ := json.Marshal(v)
-		s.st.mu.Lock()
-		s.st.idem[key] = idemRec{Status: status, Body: append(b, '\n')}
-		s.st.mu.Unlock()
-	}
-	httpx.WriteJSON(w, status, v)
+	httpx.WriteProblem(w, r, 409, httpx.CodeConflict, "Conflict", "request with this Idempotency-Key is still in progress")
 }

@@ -1,9 +1,14 @@
 package api
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -12,24 +17,38 @@ import (
 
 var methodLabel = map[string]string{"promptpay": "PromptPay", "card": "บัตรเครดิต/เดบิต", "wallet": "Wallet"}
 
+func newIntentID() string {
+	b := make([]byte, 9)
+	_, _ = rand.Read(b)
+	return "pi_" + hex.EncodeToString(b)
+}
+
 func (s *Server) listBookings(w http.ResponseWriter, r *http.Request, uid int64) {
 	status := r.URL.Query().Get("status")
 	switch status {
 	case "", "all", "pending_payment", "confirmed", "completed", "cancelled":
 	default:
-		httpx.Invalid(w, r, httpx.FieldError{Field: "status", Message: "invalid status"})
+		httpx.Invalid(w, r, fe("status", "invalid status"))
 		return
 	}
-	s.st.mu.Lock()
-	items := []BookingSummary{}
-	for _, b := range s.st.bookings {
-		if b.UserID == uid && (status == "" || status == "all" || b.Status == status) {
-			items = append(items, b.BookingSummary)
-		}
+	var items []BookingSummary
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { items, e = tx.ListBookings(uid, status); return })
+	if s.fail(w, r, err) {
+		return
 	}
-	s.st.mu.Unlock()
-	sort.Slice(items, func(i, j int) bool { return items[i].Date.After(items[j].Date) })
 	httpx.WriteJSON(w, 200, map[string]any{"items": items})
+}
+
+// ownBooking loads a booking and hides other users' bookings behind 404.
+func ownBooking(tx Tx, uid, id int64, lock bool) (*bookingRec, error) {
+	b, err := tx.GetBooking(id, lock)
+	if err != nil {
+		return nil, err
+	}
+	if b.UserID != uid {
+		return nil, ErrNotFound
+	}
+	return b, nil
 }
 
 func (s *Server) getBooking(w http.ResponseWriter, r *http.Request, uid int64) {
@@ -38,39 +57,34 @@ func (s *Server) getBooking(w http.ResponseWriter, r *http.Request, uid int64) {
 		httpx.NotFound(w, r)
 		return
 	}
-	s.st.mu.Lock()
-	b, found := s.st.bookings[id]
 	var d BookingDetail
-	if found && b.UserID == uid {
-		d = b.BookingDetail
-	} else {
-		found = false
-	}
-	s.st.mu.Unlock()
-	if !found {
-		httpx.NotFound(w, r)
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		b, e := ownBooking(tx, uid, id, false)
+		if e == nil {
+			d = b.BookingDetail
+		}
+		return e
+	})
+	if s.fail(w, r, err) {
 		return
 	}
 	httpx.WriteJSON(w, 200, d)
 }
 
 func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64) {
-	key := s.idemKey(r, uid, "bookings")
-	if s.replay(w, key) {
-		return
-	}
 	var req CreateBookingRequest
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.Invalid(w, r, httpx.FieldError{Field: "body", Message: err.Error()})
+		httpx.Invalid(w, r, fe("body", err.Error()))
 		return
 	}
 	var errs []httpx.FieldError
 	var subtotal float64
 	var title, subtitle, typ string
+	var lines []bookingLine
 	for i, ln := range req.Lines {
 		l, ok := findListing(ln.ListingID)
 		if !ok {
-			errs = append(errs, httpx.FieldError{Field: fmt.Sprintf("lines[%d].listingId", i), Message: "unknown listing"})
+			errs = append(errs, fe(fmt.Sprintf("lines[%d].listingId", i), "unknown listing"))
 			continue
 		}
 		q := ln.Quantity
@@ -78,29 +92,31 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 			q = 1
 		}
 		if q < 1 || q > 20 {
-			errs = append(errs, httpx.FieldError{Field: fmt.Sprintf("lines[%d].quantity", i), Message: "must be 1..20"})
+			errs = append(errs, fe(fmt.Sprintf("lines[%d].quantity", i), "must be 1..20"))
 			continue
 		}
 		subtotal += l.PriceFrom * float64(q)
+		lines = append(lines, bookingLine{ListingID: l.ID, Description: l.Name, Quantity: q, UnitPrice: l.PriceFrom})
 		if title == "" {
 			title, subtitle, typ = l.Name, l.Location, l.Type
 		}
 	}
 	if len(req.Lines) == 0 && req.TripPackage == nil {
-		errs = append(errs, httpx.FieldError{Field: "lines", Message: "at least one line or tripPackage required"})
+		errs = append(errs, fe("lines", "at least one line or tripPackage required"))
 	}
 	if req.TripPackage != nil && len(req.Lines) == 0 {
-		if req.TripPackage.Price <= 0 || strings.TrimSpace(req.TripPackage.Title) == "" {
-			errs = append(errs, httpx.FieldError{Field: "tripPackage", Message: "title and positive price required"})
+		if req.TripPackage.Price <= 0 || strings.TrimSpace(req.TripPackage.Title) == "" || len([]rune(req.TripPackage.Title)) > 190 {
+			errs = append(errs, fe("tripPackage", "title (max 190) and positive price required"))
 		} else {
 			subtotal, title, subtitle, typ = req.TripPackage.Price, req.TripPackage.Title, req.TripPackage.Subtitle, "trip"
+			lines = append(lines, bookingLine{Description: title, Quantity: 1, UnitPrice: subtotal})
 		}
 	}
 	start, end, guests := s.validateTrip(req, &errs)
 	var discount float64
 	if c := strings.ToUpper(strings.TrimSpace(req.CouponCode)); c != "" {
 		if c != "WELCOME10" || subtotal < 1000 {
-			errs = append(errs, httpx.FieldError{Field: "couponCode", Message: "coupon invalid or minimum spend not met"})
+			errs = append(errs, fe("couponCode", "coupon invalid or minimum spend not met"))
 		} else {
 			discount = min(round2(subtotal*0.10), 500)
 		}
@@ -112,17 +128,16 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 	fee := round2(subtotal * 0.03)
 	total := round2(subtotal + fee - discount)
 	now := s.now()
-	s.st.mu.Lock()
-	id := s.st.nextBooking
-	s.st.nextBooking++
-	b := &bookingRec{UserID: uid, BookingDetail: BookingDetail{
-		BookingSummary: BookingSummary{ID: id, BookingNumber: s.st.bookingNumber(id, now), Type: typ, Title: title, Subtitle: subtitle,
-			Amount: total, Date: now, Status: "pending_payment", StartDate: start, EndDate: end, Guests: guests},
-		Subtotal: round2(subtotal), ServiceFee: fee}}
-	s.st.bookings[id] = b
-	d := b.BookingDetail
-	s.st.mu.Unlock()
-	s.respondIdem(w, key, 201, d)
+	s.idempotent(w, r, uid, "bookings", func(tx Tx) (int, any, error) {
+		b := &bookingRec{UserID: uid, Lines: lines, BookingDetail: BookingDetail{
+			BookingSummary: BookingSummary{Type: typ, Title: title, Subtitle: subtitle, Amount: total, Date: now, Status: "pending_payment",
+				StartDate: start, EndDate: end, Guests: guests},
+			Subtotal: round2(subtotal), ServiceFee: fee}}
+		if err := tx.CreateBooking(b); err != nil {
+			return 0, nil, err
+		}
+		return 201, b.BookingDetail, nil
+	})
 }
 
 func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request, uid int64) {
@@ -135,138 +150,182 @@ func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request, uid int64
 		Reason string `json:"reason"`
 	}
 	if err := httpx.Decode(r, &req); err != nil || strings.TrimSpace(req.Reason) == "" || len(req.Reason) > 500 {
-		httpx.Invalid(w, r, httpx.FieldError{Field: "reason", Message: "required, max 500 chars"})
+		httpx.Invalid(w, r, fe("reason", "required, max 500 chars"))
 		return
 	}
-	s.st.mu.Lock()
-	b, found := s.st.bookings[id]
-	if !found || b.UserID != uid {
-		s.st.mu.Unlock()
-		httpx.NotFound(w, r)
+	var d BookingDetail
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		b, e := ownBooking(tx, uid, id, true)
+		if e != nil {
+			return e
+		}
+		if b.Status != "pending_payment" && b.Status != "confirmed" {
+			return invalid(fe("status", "booking cannot be cancelled in state "+b.Status))
+		}
+		refund := 0.0
+		if b.Status == "confirmed" {
+			refund = b.Amount
+			if _, e := tx.WalletAdjust(uid, refund, "คืนเงินการจอง "+b.BookingNumber, s.now()); e != nil {
+				return e
+			}
+			if e := tx.MarkPaymentRefunded(b.ID); e != nil {
+				return e
+			}
+		}
+		b.Status, b.CancelReason, b.RefundAmount = "cancelled", req.Reason, &refund
+		if e := tx.SaveBooking(b); e != nil {
+			return e
+		}
+		d = b.BookingDetail
+		return nil
+	})
+	if s.fail(w, r, err) {
 		return
 	}
-	if b.Status != "pending_payment" && b.Status != "confirmed" {
-		s.st.mu.Unlock()
-		httpx.Invalid(w, r, httpx.FieldError{Field: "status", Message: "booking cannot be cancelled in state " + b.Status})
-		return
-	}
-	refund := 0.0
-	if b.Status == "confirmed" {
-		refund = b.Amount
-		u := s.st.users[uid]
-		u.Wallet = round2(u.Wallet + refund)
-		u.Txs = append(u.Txs, WalletTx{ID: s.st.nextTx, Direction: "in", Label: "คืนเงินการจอง " + b.BookingNumber, Amount: refund, CreatedAt: s.now()})
-		s.st.nextTx++
-	}
-	b.Status, b.CancelReason, b.RefundAmount = "cancelled", req.Reason, &refund
-	d := b.BookingDetail
-	s.st.mu.Unlock()
 	httpx.WriteJSON(w, 200, d)
 }
 
-func (s *Server) createIntent(w http.ResponseWriter, r *http.Request, uid int64) {
-	key := s.idemKey(r, uid, "intents")
-	if s.replay(w, key) {
-		return
+// confirmBooking marks a pending booking as paid. The caller holds the booking row lock.
+func (s *Server) confirmBooking(tx Tx, b *bookingRec, pi *intentRec) error {
+	b.Status, b.Method = "confirmed", methodLabel[pi.Method]
+	if err := tx.SaveBooking(b); err != nil {
+		return err
 	}
+	return tx.RecordPayment(b.ID, pi.ID, pi.Method, pi.Amount, "succeeded", s.now())
+}
+
+func (s *Server) createIntent(w http.ResponseWriter, r *http.Request, uid int64) {
 	var req struct {
 		BookingID int64  `json:"bookingId"`
 		Method    string `json:"method"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.Invalid(w, r, httpx.FieldError{Field: "body", Message: err.Error()})
+		httpx.Invalid(w, r, fe("body", err.Error()))
 		return
 	}
 	if _, ok := methodLabel[req.Method]; !ok || req.BookingID <= 0 {
-		httpx.Invalid(w, r, httpx.FieldError{Field: "method/bookingId", Message: "method must be promptpay|card|wallet and bookingId required"})
+		httpx.Invalid(w, r, fe("method/bookingId", "method must be promptpay|card|wallet and bookingId required"))
 		return
 	}
-	s.st.mu.Lock()
-	b, found := s.st.bookings[req.BookingID]
-	if !found || b.UserID != uid {
-		s.st.mu.Unlock()
-		httpx.NotFound(w, r)
-		return
-	}
-	if b.Status != "pending_payment" {
-		s.st.mu.Unlock()
-		httpx.Invalid(w, r, httpx.FieldError{Field: "bookingId", Message: "booking is not awaiting payment"})
-		return
-	}
-	pi := &intentRec{UserID: uid, BookingID: b.ID, Created: s.now()}
-	pi.ID = fmt.Sprintf("pi_%06d", s.st.nextIntent)
-	s.st.nextIntent++
-	pi.Method, pi.Amount = req.Method, b.Amount
-	if req.Method == "wallet" {
-		u := s.st.users[uid]
-		if u.Wallet < b.Amount {
-			s.st.mu.Unlock()
-			httpx.WriteProblem(w, r, 402, httpx.CodeWalletShort, "Payment Required", "wallet balance is insufficient")
-			return
+	s.idempotent(w, r, uid, "intents", func(tx Tx) (int, any, error) {
+		b, err := ownBooking(tx, uid, req.BookingID, true)
+		if err != nil {
+			return 0, nil, err
 		}
-		u.Wallet = round2(u.Wallet - b.Amount)
-		u.Txs = append(u.Txs, WalletTx{ID: s.st.nextTx, Direction: "out", Label: "ชำระการจอง " + b.BookingNumber, Amount: b.Amount, CreatedAt: s.now()})
-		s.st.nextTx++
-		pi.Status, pi.Settled = "succeeded", true
-		b.Status, b.Method = "confirmed", methodLabel["wallet"]
-	} else {
-		pi.Status = "pending"
-		if req.Method == "promptpay" {
-			pi.PromptPayQrURL = "https://mock.tep.local/qr/" + pi.ID + ".png"
+		if b.Status != "pending_payment" {
+			return 0, nil, invalid(fe("bookingId", "booking is not awaiting payment"))
+		}
+		pi := &intentRec{UserID: uid, BookingID: b.ID, Created: s.now()}
+		pi.ID, pi.Method, pi.Amount = newIntentID(), req.Method, b.Amount
+		if req.Method == "wallet" {
+			if _, err := tx.WalletAdjust(uid, -b.Amount, "ชำระการจอง "+b.BookingNumber, s.now()); err != nil {
+				return 0, nil, err // ErrInsufficient -> 402
+			}
+			pi.Status = "succeeded"
+			if err := s.confirmBooking(tx, b, pi); err != nil {
+				return 0, nil, err
+			}
 		} else {
-			pi.ClientSecret = pi.ID + "_secret_mock"
+			pi.Status = "pending"
+			if req.Method == "promptpay" {
+				pi.PromptPayQrURL = "https://mock.tep.local/qr/" + pi.ID + ".png"
+			} else {
+				pi.ClientSecret = pi.ID + "_secret_mock"
+			}
 		}
-	}
-	s.st.intents[pi.ID] = pi
-	out := pi.PaymentIntent
-	s.st.mu.Unlock()
-	s.respondIdem(w, key, 201, out)
+		if err := tx.CreateIntent(pi); err != nil {
+			return 0, nil, err
+		}
+		return 201, pi.PaymentIntent, nil
+	})
 }
 
-// settleLocked applies the mock PSP outcome once the settle delay has elapsed. Caller holds st.mu.
-func (s *Server) settleLocked(pi *intentRec) {
-	if pi.Settled || s.now().Sub(pi.Created) < s.settleAfter {
-		return
+// finishIntent applies the PSP outcome ("succeeded" | "failed") to a pending intent. Caller holds the intent lock.
+func (s *Server) finishIntent(tx Tx, pi *intentRec, status string) error {
+	if pi.Status != "pending" {
+		return nil
 	}
-	pi.Settled, pi.Status = true, "succeeded"
+	pi.Status = status
+	if err := tx.SaveIntent(pi); err != nil {
+		return err
+	}
+	if status != "succeeded" {
+		return nil
+	}
 	if pi.BookingID != 0 {
-		if b := s.st.bookings[pi.BookingID]; b != nil && b.Status == "pending_payment" {
-			b.Status, b.Method = "confirmed", methodLabel[pi.Method]
+		b, err := tx.GetBooking(pi.BookingID, true)
+		if err != nil {
+			return err
 		}
-		return
+		if b.Status == "pending_payment" {
+			return s.confirmBooking(tx, b, pi)
+		}
+		return nil
 	}
-	u := s.st.users[pi.UserID]
-	u.Wallet = round2(u.Wallet + pi.Amount)
-	u.Txs = append(u.Txs, WalletTx{ID: s.st.nextTx, Direction: "in", Label: "เติมเงิน PromptPay", Amount: pi.Amount, CreatedAt: s.now()})
-	s.st.nextTx++
+	_, err := tx.WalletAdjust(pi.UserID, pi.Amount, "เติมเงิน PromptPay", s.now())
+	return err
+}
+
+// settleIfDue is the mock PSP (MOCK_PAYMENT=true): a pending intent succeeds after settleAfter.
+func (s *Server) settleIfDue(tx Tx, pi *intentRec) error {
+	if pi.Status == "pending" && s.cfg.MockPayment && s.now().Sub(pi.Created) >= s.settleAfter {
+		return s.finishIntent(tx, pi, "succeeded")
+	}
+	return nil
 }
 
 func (s *Server) getIntent(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	pi, ok := s.st.intents[r.PathValue("intentId")]
-	if !ok || pi.UserID != uid {
-		s.st.mu.Unlock()
-		httpx.NotFound(w, r)
+	var out PaymentIntent
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		pi, e := tx.GetIntent(r.PathValue("intentId"), true)
+		if e != nil {
+			return e
+		}
+		if pi.UserID != uid {
+			return ErrNotFound
+		}
+		if e := s.settleIfDue(tx, pi); e != nil {
+			return e
+		}
+		out = pi.PaymentIntent
+		return nil
+	})
+	if s.fail(w, r, err) {
 		return
 	}
-	s.settleLocked(pi)
-	out := pi.PaymentIntent
-	s.st.mu.Unlock()
 	httpx.WriteJSON(w, 200, out)
 }
 
 func (s *Server) getWallet(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	for _, pi := range s.st.intents { // settle due top-ups so balance is fresh
-		if pi.UserID == uid {
-			s.settleLocked(pi)
+	var out Wallet
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		pend, e := tx.PendingIntents(uid) // settle due top-ups so the balance is fresh
+		if e != nil {
+			return e
 		}
+		for _, p := range pend {
+			pi, e := tx.GetIntent(p.ID, true)
+			if e != nil {
+				return e
+			}
+			if e := s.settleIfDue(tx, pi); e != nil {
+				return e
+			}
+		}
+		bal, e := tx.WalletBalance(uid, false)
+		if e != nil {
+			return e
+		}
+		txs, e := tx.WalletTxs(uid)
+		if e != nil {
+			return e
+		}
+		out = Wallet{Balance: bal, Currency: "THB", Transactions: txs}
+		return nil
+	})
+	if s.fail(w, r, err) {
+		return
 	}
-	u := s.st.users[uid]
-	txs := append([]WalletTx{}, u.Txs...)
-	out := Wallet{Balance: u.Wallet, Currency: "THB", Transactions: txs}
-	s.st.mu.Unlock()
-	sort.Slice(out.Transactions, func(i, j int) bool { return out.Transactions[i].CreatedAt.After(out.Transactions[j].CreatedAt) })
 	httpx.WriteJSON(w, 200, out)
 }
 
@@ -276,20 +335,72 @@ func (s *Server) topUp(w http.ResponseWriter, r *http.Request, uid int64) {
 		Method string  `json:"method"`
 	}
 	if err := httpx.Decode(r, &req); err != nil || req.Amount < 1 || req.Amount > 100000 || (req.Method != "" && req.Method != "promptpay") {
-		httpx.Invalid(w, r, httpx.FieldError{Field: "amount", Message: "must be between 1 and 100000 (method promptpay)"})
+		httpx.Invalid(w, r, fe("amount", "must be between 1 and 100000 (method promptpay)"))
 		return
 	}
-	s.st.mu.Lock()
-	pi := &intentRec{UserID: uid, Created: time.Now()}
-	pi.Created = s.now()
-	pi.ID = fmt.Sprintf("pi_%06d", s.st.nextIntent)
-	s.st.nextIntent++
-	pi.Method, pi.Amount, pi.Status = "promptpay", round2(req.Amount), "pending"
-	pi.PromptPayQrURL = "https://mock.tep.local/qr/" + pi.ID + ".png"
-	s.st.intents[pi.ID] = pi
-	out := pi.PaymentIntent
-	s.st.mu.Unlock()
+	var out PaymentIntent
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		pi := &intentRec{UserID: uid, Created: s.now()}
+		pi.ID, pi.Method, pi.Amount, pi.Status = newIntentID(), "promptpay", round2(req.Amount), "pending"
+		pi.PromptPayQrURL = "https://mock.tep.local/qr/" + pi.ID + ".png"
+		out = pi.PaymentIntent
+		return tx.CreateIntent(pi)
+	})
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 202, out)
+}
+
+// paymentWebhook receives PSP callbacks. The raw body is authenticated with HMAC-SHA256 (hex, header X-Signature) using
+// WEBHOOK_SECRET; each (provider, eventId) is processed once.
+func (s *Server) paymentWebhook(w http.ResponseWriter, r *http.Request) {
+	provider := r.PathValue("provider")
+	if s.cfg.WebhookSecret == "" || (provider != "promptpay" && provider != "card" && provider != "mock") {
+		httpx.NotFound(w, r)
+		return
+	}
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err != nil {
+		httpx.Invalid(w, r, fe("body", "unreadable"))
+		return
+	}
+	mac := hmac.New(sha256.New, []byte(s.cfg.WebhookSecret))
+	mac.Write(raw)
+	want := mac.Sum(nil)
+	got, derr := hex.DecodeString(strings.TrimSpace(r.Header.Get("X-Signature")))
+	if derr != nil || !hmac.Equal(got, want) {
+		httpx.Unauthorized(w, r, "invalid signature")
+		return
+	}
+	var ev struct {
+		EventID  string `json:"eventId"`
+		IntentID string `json:"intentId"`
+		Status   string `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &ev); err != nil || ev.EventID == "" || len(ev.EventID) > 120 || ev.IntentID == "" || (ev.Status != "succeeded" && ev.Status != "failed") {
+		httpx.Invalid(w, r, fe("body", "eventId, intentId and status (succeeded|failed) required"))
+		return
+	}
+	duplicate := false
+	err = s.repo.Tx(r.Context(), func(tx Tx) error {
+		if e := tx.AddWebhookEvent(provider, ev.EventID, s.now()); e != nil {
+			if e == ErrDuplicate {
+				duplicate = true
+				return nil
+			}
+			return e
+		}
+		pi, e := tx.GetIntent(ev.IntentID, true)
+		if e != nil {
+			return e
+		}
+		return s.finishIntent(tx, pi, ev.Status)
+	})
+	if s.fail(w, r, err) {
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"received": true, "duplicate": duplicate})
 }
 
 // validateTrip checks the optional stay/visit dates and guest count of a booking request (finding F-1).

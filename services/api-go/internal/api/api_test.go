@@ -23,9 +23,15 @@ type env struct {
 	now time.Time
 }
 
-func newEnv(t *testing.T, checks map[string]Check) *env {
+func newEnv(t *testing.T, checks map[string]Check) *env { return newEnvCfg(t, checks, nil) }
+
+// newEnvCfg builds a server; tweak adjusts the config (e.g. enable the webhook secret).
+func newEnvCfg(t *testing.T, checks map[string]Check, tweak func(*config.Config)) *env {
 	cfg := config.Config{AppEnv: "dev", APIMode: "mock", JWTSecret: config.PlaceholderJWTSecret, MockPayment: true, Version: "test"}
-	s := New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), checks)
+	if tweak != nil {
+		tweak(&cfg)
+	}
+	s := New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), checks, testRepoOpts(t)...)
 	e := &env{t: t, s: s, now: time.Now()}
 	s.now = func() time.Time { return e.now }
 	e.ts = httptest.NewServer(httpx.Chain(s.Handler(), slog.New(slog.NewTextHandler(io.Discard, nil)), false))

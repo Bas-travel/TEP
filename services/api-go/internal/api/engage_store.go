@@ -108,6 +108,11 @@ type Post struct {
 	HasImage    bool        `json:"hasImage"`
 	SharedTrip  *SharedTrip `json:"sharedTrip"`
 	CreatedAt   time.Time   `json:"createdAt"`
+
+	AuthorName   string `json:"authorName,omitempty"`
+	CommentCount int    `json:"commentCount"`
+	Liked        bool   `json:"liked"`
+	Saved        bool   `json:"saved"`
 }
 
 type ItineraryJob struct {
@@ -117,37 +122,43 @@ type ItineraryJob struct {
 	Result   *ItineraryResult `json:"result,omitempty"`
 }
 
-// userExtra is per-user engagement state (settings, coupons, notifications...). Guarded by store.mu.
-type userExtra struct {
-	Settings Settings
-	Coupons  []UserCoupon
-	Notifs   []Notification
-	Trips    []SavedTrip
-	Reviews  []Review
-	Tickets  []SupportTicket
-	Liked    map[int64]bool
-	Jobs     map[string]ItineraryJob
+type Comment struct {
+	ID           int64     `json:"id"`
+	AuthorID     string    `json:"authorId"`
+	AuthorName   string    `json:"authorName,omitempty"`
+	Text         string    `json:"text"`
+	LikeCount    int       `json:"likeCount"`
+	IsBestAnswer bool      `json:"isBestAnswer"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
-// extra returns (creating) the per-user state. Caller must hold s.st.mu.
-func (s *Server) extra(uid int64) *userExtra {
-	if s.st.extras == nil {
-		s.st.extras = map[int64]*userExtra{}
-	}
-	x := s.st.extras[uid]
-	if x == nil {
-		x = &userExtra{
-			Settings: Settings{Language: "th", Currency: "THB", Theme: "light", Notifications: NotifySetting{true, true, true, true}},
-			Liked:    map[int64]bool{}, Jobs: map[string]ItineraryJob{},
-		}
-		s.st.extras[uid] = x
-	}
-	return x
+type PostDetail struct {
+	Post
+	Comments []Comment `json:"comments"`
 }
 
-func (s *Server) nextID() int64 {
-	s.st.engageSeq++
-	return s.st.engageSeq
+type Group struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Destination *string `json:"destination"`
+	MemberCount int     `json:"memberCount"`
+	GradientCSS string  `json:"gradientCss"`
+}
+
+type GroupDetail struct {
+	Group
+	Rules  []string `json:"rules"`
+	Joined bool     `json:"joined"`
+}
+
+type MemberProfile struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Level         string `json:"level"`
+	Bio           string `json:"bio"`
+	FollowerCount int    `json:"followerCount"`
+	Following     bool   `json:"following"`
 }
 
 func buildItinerary(dest string, days int, budget float64, travelers int) *ItineraryResult {

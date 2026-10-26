@@ -1,10 +1,10 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Bas-travel/tep/services/api-go/internal/httpx"
 )
@@ -24,20 +24,28 @@ func (s *Server) engageRoutes(m *http.ServeMux) {
 	m.HandleFunc("POST /v1/reviews", s.authed(s.createReview))
 	m.HandleFunc("GET /v1/support/tickets", s.authed(s.listTickets))
 	m.HandleFunc("POST /v1/support/tickets", s.authed(s.createTicket))
-	m.HandleFunc("GET /v1/community/feed", s.authed(s.communityFeed))
-	m.HandleFunc("POST /v1/community/posts/{postId}/like", s.authed(s.likePost))
 	m.HandleFunc("POST /v1/ai/itineraries", s.authed(s.createItinerary))
 	m.HandleFunc("GET /v1/ai/itineraries/jobs/{jobId}", s.authed(s.getItineraryJob))
 }
 
 func fe(field, msg string) httpx.FieldError { return httpx.FieldError{Field: field, Message: msg} }
 
+func (s *Server) today() string { return s.now().Format("2006-01-02") }
+
+func randID(prefix string) string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return prefix + hex.EncodeToString(b)
+}
+
 // ---- settings ----
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	v := s.extra(uid).Settings
-	s.st.mu.Unlock()
+	var v Settings
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { v, e = tx.Settings(uid); return })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 200, v)
 }
 
@@ -57,43 +65,63 @@ func (s *Server) patchSettings(w http.ResponseWriter, r *http.Request, uid int64
 		httpx.Invalid(w, r, fe("body", err.Error()))
 		return
 	}
+	var errs []httpx.FieldError
 	if in.Theme != nil && *in.Theme != "light" && *in.Theme != "dark" && *in.Theme != "system" {
-		httpx.Invalid(w, r, fe("theme", "must be light, dark or system"))
+		errs = append(errs, fe("theme", "must be light, dark or system"))
+	}
+	if in.Language != nil && (len(*in.Language) < 2 || len(*in.Language) > 10) {
+		errs = append(errs, fe("language", "must be a language code (2..10 chars)"))
+	}
+	if in.Currency != nil && len(*in.Currency) != 3 {
+		errs = append(errs, fe("currency", "must be a 3-letter code"))
+	}
+	if len(errs) > 0 {
+		httpx.Invalid(w, r, errs...)
 		return
 	}
-	s.st.mu.Lock()
-	x := s.extra(uid)
-	if in.Language != nil {
-		x.Settings.Language = *in.Language
-	}
-	if in.Currency != nil {
-		x.Settings.Currency = *in.Currency
-	}
-	if in.Theme != nil {
-		x.Settings.Theme = *in.Theme
-	}
-	if n := in.Notifications; n != nil {
-		set := func(dst *bool, v *bool) {
-			if v != nil {
-				*dst = *v
-			}
+	var v Settings
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		cur, e := tx.Settings(uid)
+		if e != nil {
+			return e
 		}
-		set(&x.Settings.Notifications.Push, n.Push)
-		set(&x.Settings.Notifications.Email, n.Email)
-		set(&x.Settings.Notifications.Trip, n.Trip)
-		set(&x.Settings.Notifications.Promo, n.Promo)
+		if in.Language != nil {
+			cur.Language = *in.Language
+		}
+		if in.Currency != nil {
+			cur.Currency = strings.ToUpper(*in.Currency)
+		}
+		if in.Theme != nil {
+			cur.Theme = *in.Theme
+		}
+		if n := in.Notifications; n != nil {
+			set := func(dst *bool, v *bool) {
+				if v != nil {
+					*dst = *v
+				}
+			}
+			set(&cur.Notifications.Push, n.Push)
+			set(&cur.Notifications.Email, n.Email)
+			set(&cur.Notifications.Trip, n.Trip)
+			set(&cur.Notifications.Promo, n.Promo)
+		}
+		v = cur
+		return tx.SaveSettings(uid, cur)
+	})
+	if s.fail(w, r, err) {
+		return
 	}
-	v := x.Settings
-	s.st.mu.Unlock()
 	httpx.WriteJSON(w, 200, v)
 }
 
 // ---- coupons ----
 
 func (s *Server) listCoupons(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	items := append([]UserCoupon{}, s.extra(uid).Coupons...)
-	s.st.mu.Unlock()
+	var items []UserCoupon
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { items, e = tx.UserCoupons(uid, s.today()); return })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 200, map[string]any{"items": items})
 }
 
@@ -103,54 +131,54 @@ func (s *Server) applyCoupon(w http.ResponseWriter, r *http.Request, uid int64) 
 		Total float64 `json:"bookingDraftTotal"`
 	}
 	_ = httpx.Decode(r, &in)
-	s.st.mu.Lock()
-	var c *UserCoupon
-	x := s.extra(uid)
-	for i := range x.Coupons {
-		if x.Coupons[i].Code == code {
-			cp := x.Coupons[i]
-			c = &cp
+	var disc float64
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		list, e := tx.UserCoupons(uid, s.today())
+		if e != nil {
+			return e
 		}
-	}
-	s.st.mu.Unlock()
-	if c == nil {
-		httpx.NotFound(w, r)
+		var c *UserCoupon
+		for i := range list {
+			if list[i].Code == code {
+				c = &list[i]
+			}
+		}
+		if c == nil {
+			return ErrNotFound
+		}
+		if c.Status != "available" {
+			return invalid(fe("code", "coupon is not available"))
+		}
+		if in.Total < c.MinSpend {
+			return invalid(fe("bookingDraftTotal", "below minimum spend"))
+		}
+		disc = in.Total * c.pct
+		if c.pct >= 1 || disc > c.MaxDiscount {
+			disc = c.MaxDiscount
+		}
+		return nil
+	})
+	if s.fail(w, r, err) {
 		return
 	}
-	if c.Status != "available" {
-		httpx.Invalid(w, r, fe("code", "coupon is not available"))
-		return
-	}
-	if in.Total < c.MinSpend {
-		httpx.Invalid(w, r, fe("bookingDraftTotal", "below minimum spend"))
-		return
-	}
-	d := in.Total * c.pct
-	if c.pct >= 1 || d > c.MaxDiscount {
-		d = c.MaxDiscount
-	}
-	httpx.WriteJSON(w, 200, map[string]any{"valid": true, "discount": round2(d), "message": "ใช้คูปองสำเร็จ"})
+	httpx.WriteJSON(w, 200, map[string]any{"valid": true, "discount": round2(disc), "message": "ใช้คูปองสำเร็จ"})
 }
 
 // ---- notifications ----
 
 func (s *Server) listNotifications(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	items := append([]Notification{}, s.extra(uid).Notifs...)
-	s.st.mu.Unlock()
-	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
-		items[i], items[j] = items[j], items[i]
+	var items []Notification
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { items, e = tx.Notifications(uid); return })
+	if s.fail(w, r, err) {
+		return
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"items": items})
 }
 
 func (s *Server) readAllNotifications(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	x := s.extra(uid)
-	for i := range x.Notifs {
-		x.Notifs[i].Read = true
+	if s.fail(w, r, s.repo.Tx(r.Context(), func(tx Tx) error { return tx.MarkAllNotificationsRead(uid) })) {
+		return
 	}
-	s.st.mu.Unlock()
 	w.WriteHeader(204)
 }
 
@@ -160,17 +188,7 @@ func (s *Server) readNotification(w http.ResponseWriter, r *http.Request, uid in
 		httpx.NotFound(w, r)
 		return
 	}
-	found := false
-	s.st.mu.Lock()
-	x := s.extra(uid)
-	for i := range x.Notifs {
-		if x.Notifs[i].ID == id {
-			x.Notifs[i].Read, found = true, true
-		}
-	}
-	s.st.mu.Unlock()
-	if !found {
-		httpx.NotFound(w, r)
+	if s.fail(w, r, s.repo.Tx(r.Context(), func(tx Tx) error { return tx.MarkNotificationRead(uid, id) })) {
 		return
 	}
 	w.WriteHeader(204)
@@ -179,9 +197,11 @@ func (s *Server) readNotification(w http.ResponseWriter, r *http.Request, uid in
 // ---- trips ----
 
 func (s *Server) listTrips(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	items := append([]SavedTrip{}, s.extra(uid).Trips...)
-	s.st.mu.Unlock()
+	var items []SavedTrip
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { items, e = tx.Trips(uid); return })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 200, map[string]any{"items": items})
 }
 
@@ -192,8 +212,8 @@ func (s *Server) createTrip(w http.ResponseWriter, r *http.Request, uid int64) {
 		return
 	}
 	var errs []httpx.FieldError
-	if strings.TrimSpace(in.Destination) == "" {
-		errs = append(errs, fe("destination", "required"))
+	if strings.TrimSpace(in.Destination) == "" || len([]rune(in.Destination)) > 120 {
+		errs = append(errs, fe("destination", "required, max 120 characters"))
 	}
 	if in.Days < 1 || in.Days > 14 {
 		errs = append(errs, fe("days", "must be 1..14"))
@@ -204,6 +224,9 @@ func (s *Server) createTrip(w http.ResponseWriter, r *http.Request, uid int64) {
 	if in.Source != "ai" && in.Source != "community" && in.Source != "manual" {
 		errs = append(errs, fe("source", "must be ai, community or manual"))
 	}
+	if in.Budget < 0 {
+		errs = append(errs, fe("budget", "must not be negative"))
+	}
 	if len(errs) > 0 {
 		httpx.Invalid(w, r, errs...)
 		return
@@ -211,11 +234,11 @@ func (s *Server) createTrip(w http.ResponseWriter, r *http.Request, uid int64) {
 	if in.Travelers < 1 {
 		in.Travelers = 1
 	}
-	s.st.mu.Lock()
-	t := SavedTrip{ID: s.nextID(), SavedTripInput: in}
-	x := s.extra(uid)
-	x.Trips = append(x.Trips, t)
-	s.st.mu.Unlock()
+	var t SavedTrip
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { t, e = tx.AddTrip(uid, in, s.now()); return })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 201, t)
 }
 
@@ -225,23 +248,33 @@ func (s *Server) getTrip(w http.ResponseWriter, r *http.Request, uid int64) {
 		httpx.NotFound(w, r)
 		return
 	}
-	s.st.mu.Lock()
-	defer s.st.mu.Unlock()
-	for _, t := range s.extra(uid).Trips {
-		if t.ID == id {
-			httpx.WriteJSON(w, 200, t)
-			return
-		}
+	var t *SavedTrip
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { t, e = tx.Trip(uid, id); return })
+	if s.fail(w, r, err) {
+		return
 	}
-	httpx.NotFound(w, r)
+	httpx.WriteJSON(w, 200, t)
 }
 
 // ---- reviews ----
 
+func reviewOut(rv reviewRec) Review {
+	l, _ := findListing(rv.ListingID)
+	return Review{ID: rv.ID, ItemName: l.Name, ItemType: l.Type, Rating: rv.Rating, Comment: rv.Comment, CreatedAt: rv.CreatedAt}
+}
+
 func (s *Server) listReviews(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	items := append([]Review{}, s.extra(uid).Reviews...)
-	s.st.mu.Unlock()
+	items := []Review{}
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		rs, e := tx.Reviews(uid)
+		for _, rv := range rs {
+			items = append(items, reviewOut(rv))
+		}
+		return e
+	})
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 200, map[string]any{"items": items})
 }
 
@@ -261,36 +294,36 @@ func (s *Server) createReview(w http.ResponseWriter, r *http.Request, uid int64)
 	}
 	if in.Comment == nil {
 		errs = append(errs, fe("comment", "required"))
-	} else if len(*in.Comment) > 2000 {
+	} else if len([]rune(*in.Comment)) > 2000 {
 		errs = append(errs, fe("comment", "max 2000 characters"))
 	}
-	var lst *listingRow
-	for i := range seedListings {
-		if seedListings[i].ID == in.ListingID {
-			lst = &seedListings[i]
-		}
-	}
-	if lst == nil {
+	if _, ok := findListing(in.ListingID); !ok {
 		errs = append(errs, fe("listingId", "unknown listing"))
 	}
 	if len(errs) > 0 {
 		httpx.Invalid(w, r, errs...)
 		return
 	}
-	s.st.mu.Lock()
-	rv := Review{ID: s.nextID(), ItemName: lst.Name, ItemType: lst.Type, Rating: in.Rating, Comment: *in.Comment, CreatedAt: s.now()}
-	x := s.extra(uid)
-	x.Reviews = append(x.Reviews, rv)
-	s.st.mu.Unlock()
-	httpx.WriteJSON(w, 201, rv)
+	var out Review
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		rv, e := tx.AddReview(uid, in.ListingID, in.Rating, *in.Comment, s.now())
+		out = reviewOut(rv)
+		return e
+	})
+	if s.fail(w, r, err) {
+		return
+	}
+	httpx.WriteJSON(w, 201, out)
 }
 
 // ---- support ----
 
 func (s *Server) listTickets(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	items := append([]SupportTicket{}, s.extra(uid).Tickets...)
-	s.st.mu.Unlock()
+	var items []SupportTicket
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { items, e = tx.Tickets(uid); return })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 200, map[string]any{"items": items})
 }
 
@@ -311,64 +344,12 @@ func (s *Server) createTicket(w http.ResponseWriter, r *http.Request, uid int64)
 		httpx.Invalid(w, r, errs...)
 		return
 	}
-	s.st.mu.Lock()
-	t := SupportTicket{ID: s.nextID(), Subject: in.Subject, Message: in.Message, CreatedAt: s.now()}
-	x := s.extra(uid)
-	x.Tickets = append(x.Tickets, t)
-	s.st.mu.Unlock()
+	var t SupportTicket
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { t, e = tx.AddTicket(uid, in.Subject, in.Message, s.now()); return })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 201, t)
-}
-
-// ---- community ----
-
-func (s *Server) communityFeed(w http.ResponseWriter, r *http.Request, uid int64) {
-	mode, dest := r.URL.Query().Get("mode"), r.URL.Query().Get("destination")
-	if mode != "" && mode != "all" && mode != "following" {
-		httpx.Invalid(w, r, fe("mode", "must be all or following"))
-		return
-	}
-	now := s.now()
-	s.st.mu.Lock()
-	x := s.extra(uid)
-	items := []Post{}
-	for i, p := range seedPosts {
-		if mode == "following" && !followedAuthors[p.AuthorID] {
-			continue
-		}
-		if dest != "" && p.Destination != dest {
-			continue
-		}
-		p.CreatedAt = now.Add(-time.Duration(i+1) * 5 * time.Hour)
-		if x.Liked[p.ID] {
-			p.LikeCount++
-		}
-		items = append(items, p)
-	}
-	s.st.mu.Unlock()
-	httpx.WriteJSON(w, 200, map[string]any{"items": items})
-}
-
-func (s *Server) likePost(w http.ResponseWriter, r *http.Request, uid int64) {
-	id, ok := pathID(r, "postId")
-	var base *Post
-	for i := range seedPosts {
-		if ok && seedPosts[i].ID == id {
-			base = &seedPosts[i]
-		}
-	}
-	if base == nil {
-		httpx.NotFound(w, r)
-		return
-	}
-	s.st.mu.Lock()
-	x := s.extra(uid)
-	x.Liked[id] = !x.Liked[id]
-	liked, n := x.Liked[id], base.LikeCount
-	if liked {
-		n++
-	}
-	s.st.mu.Unlock()
-	httpx.WriteJSON(w, 200, map[string]any{"liked": liked, "likeCount": n})
 }
 
 // ---- AI planner (template fallback, synchronous) ----
@@ -399,20 +380,19 @@ func (s *Server) createItinerary(w http.ResponseWriter, r *http.Request, uid int
 		httpx.Invalid(w, r, errs...)
 		return
 	}
-	s.st.mu.Lock()
-	job := ItineraryJob{JobID: "job_" + strconv.FormatInt(s.nextID(), 10), Status: "completed", Degraded: true,
+	job := ItineraryJob{JobID: randID("job_"), Status: "completed", Degraded: true,
 		Result: buildItinerary(in.Destination, in.Days, in.Budget, in.Travelers)}
-	s.extra(uid).Jobs[job.JobID] = job
-	s.st.mu.Unlock()
+	err := s.repo.Tx(r.Context(), func(tx Tx) error { return tx.AddJob(uid, jobRec{ItineraryJob: job, Input: in}, s.now()) })
+	if s.fail(w, r, err) {
+		return
+	}
 	httpx.WriteJSON(w, 202, job)
 }
 
 func (s *Server) getItineraryJob(w http.ResponseWriter, r *http.Request, uid int64) {
-	s.st.mu.Lock()
-	job, ok := s.extra(uid).Jobs[r.PathValue("jobId")]
-	s.st.mu.Unlock()
-	if !ok {
-		httpx.NotFound(w, r)
+	var job *ItineraryJob
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { job, e = tx.Job(uid, r.PathValue("jobId")); return })
+	if s.fail(w, r, err) {
 		return
 	}
 	httpx.WriteJSON(w, 200, job)
