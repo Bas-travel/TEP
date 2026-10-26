@@ -64,6 +64,9 @@ func (c Config) Validate() error {
 	default:
 		errs = append(errs, fmt.Errorf("APP_ENV must be dev|beta|production, got %q", c.AppEnv))
 	}
+	if c.APIMode == "db" && c.MySQLDSN == "" {
+		errs = append(errs, errors.New("API_MODE=db requires MYSQL_DSN"))
+	}
 	if c.APIMode != "mock" && c.APIMode != "db" {
 		errs = append(errs, fmt.Errorf("API_MODE must be mock|db, got %q", c.APIMode))
 	}

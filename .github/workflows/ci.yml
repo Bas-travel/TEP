@@ -38,6 +38,10 @@ jobs:
           cache-dependency-path: services/api-go/go.sum
       - run: go vet ./...
       - run: go test -race -count=1 ./...
+      - name: Same test-suite on the MySQL repository (API_MODE=db)
+        env:
+          TEP_TEST_MYSQL_DSN: tep:ci-db-pass@tcp(127.0.0.1:3306)/tep
+        run: go test -race -count=1 -p 1 ./internal/api
       - run: go build -o /tmp/tep-api ./cmd/api
       - name: Migrations + health (real MySQL/Redis)
         env:

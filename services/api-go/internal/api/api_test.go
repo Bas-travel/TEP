@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ func newEnvCfg(t *testing.T, checks map[string]Check, tweak func(*config.Config)
 	if tweak != nil {
 		tweak(&cfg)
 	}
-	s := New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), checks, testRepoOpts(t)...)
+	s := New(cfg, slog.New(slog.NewTextHandler(tWriter{t}, &slog.HandlerOptions{Level: slog.LevelError})), checks, testRepoOpts(t)...)
 	e := &env{t: t, s: s, now: time.Now()}
 	s.now = func() time.Time { return e.now }
 	e.ts = httptest.NewServer(httpx.Chain(s.Handler(), slog.New(slog.NewTextHandler(io.Discard, nil)), false))
@@ -269,3 +270,11 @@ func TestUnknownRouteIsProblemJSON(t *testing.T) {
 }
 
 func itoa(f float64) string { b, _ := json.Marshal(int64(f)); return string(b) }
+
+// tWriter routes server error logs into the test output (visible with -v or on failure).
+type tWriter struct{ t *testing.T }
+
+func (w tWriter) Write(p []byte) (int, error) {
+	w.t.Log(strings.TrimSpace(string(p)))
+	return len(p), nil
+}

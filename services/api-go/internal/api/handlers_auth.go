@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,9 +61,13 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.LastName) == "" {
 		errs = append(errs, fe("lastName", "required"))
 	}
+	errs = append(errs, validateProfileFields(req)...)
 	if len(errs) > 0 {
 		httpx.Invalid(w, r, errs...)
 		return
+	}
+	if req.Language == "" {
+		req.Language = "th"
 	}
 	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
@@ -280,4 +285,36 @@ func (s *Server) registerPushToken(w http.ResponseWriter, r *http.Request, uid i
 		return
 	}
 	w.WriteHeader(204)
+}
+
+// validateProfileFields enforces the column limits and enums up front so a bad value is a 422, never a database error.
+func validateProfileFields(req RegisterRequest) []httpx.FieldError {
+	var errs []httpx.FieldError
+	tooLong := func(name, v string, n int) {
+		if len([]rune(v)) > n {
+			errs = append(errs, fe(name, "max "+strconv.Itoa(n)+" characters"))
+		}
+	}
+	tooLong("firstName", req.FirstName, 100)
+	tooLong("lastName", req.LastName, 100)
+	tooLong("phone", req.Phone, 32)
+	tooLong("gender", req.Gender, 20)
+	tooLong("nationality", req.Nationality, 60)
+	tooLong("language", req.Language, 10)
+	tooLong("favoriteDestination", req.FavoriteDestination, 100)
+	tooLong("travelWith", req.TravelWith, 40)
+	if req.DateOfBirth != "" {
+		if d, err := time.Parse("2006-01-02", req.DateOfBirth); err != nil || d.After(time.Now()) {
+			errs = append(errs, fe("dateOfBirth", "must be a past date, YYYY-MM-DD"))
+		}
+	}
+	switch req.BudgetLevel {
+	case "", "budget", "mid", "luxury":
+	default:
+		errs = append(errs, fe("budgetLevel", "must be budget, mid or luxury"))
+	}
+	if len(req.TravelStyles) > 10 {
+		errs = append(errs, fe("travelStyles", "max 10 items"))
+	}
+	return errs
 }

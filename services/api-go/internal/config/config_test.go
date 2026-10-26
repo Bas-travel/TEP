@@ -27,8 +27,33 @@ func TestProductionRules(t *testing.T) {
 	}
 	c.MockPayment = false
 	c.MySQLDSN += "?tls=true"
+	if c.Validate() == nil {
+		t.Fatal("expected error: real payments need WEBHOOK_SECRET")
+	}
+	c.WebhookSecret = "0123456789abcdef0123456789abcdef"
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDBModeNeedsDSN(t *testing.T) {
+	c := valid()
+	c.APIMode = "db"
+	if c.Validate() == nil {
+		t.Fatal("expected error: API_MODE=db without MYSQL_DSN")
+	}
+}
+
+func TestWebhookSecretRules(t *testing.T) {
+	c := valid()
+	c.WebhookSecret = "short"
+	if c.Validate() == nil {
+		t.Fatal("expected error: secret shorter than 32")
+	}
+	c = valid()
+	c.AppEnv, c.JWTSecret, c.WebhookSecret = "beta", "0123456789abcdef0123456789abcdef", PlaceholderWebhookSecret
+	if c.Validate() == nil {
+		t.Fatal("expected error: placeholder webhook secret outside dev")
 	}
 }
 

@@ -46,6 +46,7 @@ func main() {
 		os.Exit(2)
 	}
 	checks := map[string]api.Check{}
+	var opts []api.Option
 	if cfg.MySQLDSN != "" {
 		d, err := db.Open(cfg.MySQLDSN)
 		if err != nil {
@@ -63,6 +64,9 @@ func main() {
 			log.Info("migrations applied", "versions", applied)
 		}
 		checks["mysql"] = func(ctx context.Context) error { return d.PingContext(ctx) }
+		if cfg.APIMode == "db" {
+			opts = append(opts, api.WithRepo(api.NewSQLRepo(d)))
+		}
 	}
 	if cfg.RedisAddr != "" {
 		addr := cfg.RedisAddr
@@ -70,7 +74,7 @@ func main() {
 	}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpx.Chain(api.New(cfg, log, checks).Handler(), log, cfg.AppEnv == "dev"),
+		Handler:           httpx.Chain(api.New(cfg, log, checks, opts...).Handler(), log, cfg.AppEnv == "dev"),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
