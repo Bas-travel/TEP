@@ -12,11 +12,22 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
+// Open connects to MySQL. The DSN is normalised so that DATETIME values are read and written as UTC and parsed into
+// time.Time, whatever the caller put in the DSN.
 func Open(dsn string) (*sql.DB, error) {
-	d, err := sql.Open("mysql", dsn)
+	cfg, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("invalid MYSQL_DSN: %w", err)
+	}
+	cfg.ParseTime, cfg.Loc = true, time.UTC
+	if cfg.Params == nil {
+		cfg.Params = map[string]string{}
+	}
+	cfg.Params["time_zone"] = "'+00:00'"
+	d, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
 		return nil, err
 	}
