@@ -156,7 +156,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
             child: Row(children: [
-              Expanded(child: TextField(key: const Key('comment-text'), controller: _text, maxLength: 1000, decoration: const InputDecoration(hintText: 'แสดงความคิดเห็น…', counterText: ''))),
+              Expanded(child: TextField(key: const Key('comment-text'), controller: _text, maxLength: 1000, textInputAction: TextInputAction.send, onSubmitted: (_) => _busy ? null : _send(), decoration: const InputDecoration(hintText: 'แสดงความคิดเห็น…', counterText: ''))),
               IconButton(key: const Key('comment-send'), onPressed: _busy ? null : _send, icon: const Icon(Icons.send_rounded, color: TepColors.primary)),
             ]),
           ),

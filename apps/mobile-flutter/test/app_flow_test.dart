@@ -143,7 +143,7 @@ void main() {
     await tester.tap(find.byKey(const Key('post-6')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('comment-text')), 'ขอบคุณที่แชร์ครับ');
-    await tester.tap(find.byKey(const Key('comment-send')));
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('comment-1')), findsOneWidget);
     expect(find.text('ขอบคุณที่แชร์ครับ'), findsOneWidget);
