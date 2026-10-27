@@ -154,7 +154,9 @@ class _AsyncBodyState<T> extends State<AsyncBody<T>> {
 
   Future<void> _reload() async {
     final f = widget.load();
-    setState(() => _f = f);
+    setState(() {
+      _f = f;
+    });
     try {
       await f;
     } catch (_) {

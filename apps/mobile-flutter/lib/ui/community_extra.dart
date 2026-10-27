@@ -107,7 +107,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     setState(() => _busy = false);
     if (c != null) {
       _text.clear();
-      setState(() => _f = api.postDetail(widget.postId));
+      setState(() {
+        _f = api.postDetail(widget.postId);
+      });
     }
   }
 
@@ -209,8 +211,16 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   ),
                   const SizedBox(width: 8),
                   g.joined
-                      ? OutlinedButton(key: Key('group-join-${g.id}'), onPressed: () => _toggle(g), child: const Text('ออกจากกลุ่ม'))
-                      : FilledButton(key: Key('group-join-${g.id}'), onPressed: () => _toggle(g), child: const Text('เข้าร่วม')),
+                      ? OutlinedButton(
+                          key: Key('group-join-${g.id}'),
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
+                          onPressed: () => _toggle(g),
+                          child: const Text('ออกจากกลุ่ม'))
+                      : FilledButton(
+                          key: Key('group-join-${g.id}'),
+                          style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+                          onPressed: () => _toggle(g),
+                          child: const Text('เข้าร่วม')),
                 ]),
               );
             },
