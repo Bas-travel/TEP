@@ -32,7 +32,9 @@ CI run 40378313563 on `67e9b53`: green, including the new "Same test-suite on th
 
 ## Not done / carried over
 - `docker compose up` was never run (no Docker daemon in the sandbox); compose file is parse-checked only.
-- Flutter has not been executed on a device/emulator; the UI for the new operations (create post, comments, groups/members, change password, delete account) is not built yet — the Dart `ApiClient` does not expose them.
+- Flutter has not been executed on a device/emulator (CI widget tests only). New UI + client for: write post, post detail + comments, save, groups (join/leave), change password, delete account — CI run 40494268695 on `348f649`: all 3 jobs green (Dart `analyze`, widget/unit tests, and the contract test of the real `HttpApiClient` against the real Go API for these calls).
+- Open UI question: in a widget test a tap on the comment *send icon* reported "would not hit test" (cause not found); comments are therefore sent via the keyboard send action, which is what the test drives. Check the icon on a real device.
+- Not in the app yet: follow/unfollow member UI, delete own post, report/hide post, push-token registration, image upload (API supports them).
 - Catalog (destinations/listings) is still served from Go fixtures; the `listings` table is only seeded when `MIGRATE_SEED=true`.
 - Real PSP and S3 are not exercised (mock PSP; presign verified against the AWS SigV4 test vector only).
 - Owner decisions recorded: brand **Sabai jai Travel**, ADR-004 (net/http), theme **Sunset Journey**.
