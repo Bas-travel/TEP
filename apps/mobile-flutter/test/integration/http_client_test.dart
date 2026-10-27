@@ -46,6 +46,33 @@ void main() {
           throwsA(isA<ApiException>().having((e) => e.status, 'status', 422)));
     });
 
+    test('community write, groups, password change and account deletion (fresh user)', () async {
+      final email = 'it-${DateTime.now().microsecondsSinceEpoch}@example.com';
+      await api.register(email: email, password: 'FirstPass1', firstName: 'ทดสอบ', lastName: 'ระบบ');
+      final p = await api.createPost(type: 'tip', destination: 'ภูเก็ต', text: 'ไปเช้าๆ คนน้อยและอากาศดีมาก');
+      expect(p.displayName, startsWith('ทดสอบ'));
+      await expectLater(api.createPost(type: 'story', destination: 'x', text: 'สั้น'), throwsA(isA<ApiException>().having((e) => e.status, 'status', 422)));
+      await api.addComment(p.id, 'ความคิดเห็นแรก');
+      final d = await api.postDetail(p.id);
+      expect(d.comments.length, 1);
+      expect(d.post.commentCount, 1);
+      expect(await api.toggleSave(p.id), isTrue);
+      expect((await api.postDetail(p.id)).post.saved, isTrue);
+      final groups = await api.groups();
+      expect(groups, isNotEmpty);
+      final before = (await api.group(groups.first.id)).memberCount;
+      expect(await api.toggleGroup(groups.first.id), isTrue);
+      expect((await api.group(groups.first.id)).memberCount, before + 1);
+
+      await expectLater(api.changePassword(currentPassword: 'wrong-pass', newPassword: 'SecondPass2'), throwsA(isA<ApiException>().having((e) => e.status, 'status', 422)));
+      await api.changePassword(currentPassword: 'FirstPass1', newPassword: 'SecondPass2');
+      await expectLater(api.me(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+      await expectLater(api.login(email, 'FirstPass1'), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+      await api.login(email, 'SecondPass2');
+      await api.deleteAccount();
+      await expectLater(api.login(email, 'SecondPass2'), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+    });
+
     test('book → pay with wallet → cancel → refund (full journey)', () async {
       await api.login('demo@tep.dev', 'Passw0rd!');
       expect((await api.me()).email, 'demo@tep.dev');

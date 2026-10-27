@@ -112,4 +112,96 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('฿1,500'), findsOneWidget);
   });
+
+  Future<void> openCommunity(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('home-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu-community')));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('community: write a post, open it, comment, and save it', (tester) async {
+    await _boot(tester);
+    await _login(tester);
+    await openCommunity(tester);
+    await tester.tap(find.byKey(const Key('new-post')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('post-text')), 'สั้น');
+    await tester.tap(find.byKey(const Key('post-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('post-text')), findsOneWidget); // 422: sheet stays open
+    await tester.enterText(find.byKey(const Key('post-dest')), 'ภูเก็ต');
+    await tester.enterText(find.byKey(const Key('post-text')), 'ทะเลภูเก็ตช่วงเช้าสงบมาก แนะนำมากๆ');
+    await tester.tap(find.byKey(const Key('post-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('ทะเลภูเก็ตช่วงเช้าสงบมาก แนะนำมากๆ'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('save-6')));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
+    await tester.tap(find.byKey(const Key('post-6')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('comment-text')), 'ขอบคุณที่แชร์ครับ');
+    await tester.tap(find.byKey(const Key('comment-send')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('comment-1')), findsOneWidget);
+    expect(find.text('ขอบคุณที่แชร์ครับ'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('comment-count-6'))).data, '1');
+  });
+
+  testWidgets('community groups: join and leave updates the member count', (tester) async {
+    await _boot(tester);
+    await _login(tester);
+    await openCommunity(tester);
+    await tester.tap(find.byKey(const Key('open-groups')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('group-members-2'))).data, '1 สมาชิก');
+    await tester.tap(find.byKey(const Key('group-join-2')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('group-members-2'))).data, '2 สมาชิก');
+    expect(find.text('ออกจากกลุ่ม'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('group-join-2')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('group-members-2'))).data, '1 สมาชิก');
+  });
+
+  testWidgets('change password: wrong current stays, correct signs out; new password works', (tester) async {
+    await _boot(tester);
+    await _login(tester);
+    await _tab(tester, 'โปรไฟล์');
+    await tester.tap(find.byKey(const Key('open-change-password')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('pw-current')), 'wrong-password');
+    await tester.enterText(find.byKey(const Key('pw-new')), 'NewPassw0rd!');
+    await tester.tap(find.byKey(const Key('pw-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('pw-submit')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('pw-current')), 'Passw0rd!');
+    await tester.tap(find.byKey(const Key('pw-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('submit')), findsOneWidget); // back on the login screen
+    await tester.enterText(find.byKey(const Key('password')), 'Passw0rd!');
+    await _login(tester);
+    expect(find.byType(NavigationBar), findsNothing); // old password rejected
+    await tester.enterText(find.byKey(const Key('password')), 'NewPassw0rd!');
+    await _login(tester);
+    expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
+  testWidgets('delete account asks for confirmation, then signs out', (tester) async {
+    await _boot(tester);
+    await _login(tester);
+    await _tab(tester, 'โปรไฟล์');
+    await tester.tap(find.byKey(const Key('delete-account')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('profile-name')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('delete-account')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('submit')), findsOneWidget);
+  });
 }

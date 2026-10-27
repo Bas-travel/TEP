@@ -28,6 +28,7 @@ class MockApiClient with MockEngage implements ApiClient {
   static const _methods = {'promptpay': 'PromptPay', 'card': 'บัตรเครดิต/เดบิต', 'wallet': 'Wallet'};
 
   bool _signedIn = false;
+  String _password = demoPassword;
   UserProfile _user = const UserProfile(
     id: 1,
     email: demoEmail,
@@ -57,7 +58,7 @@ class MockApiClient with MockEngage implements ApiClient {
 
   @override
   Future<void> login(String email, String password) => _t(() {
-        if (email.trim().toLowerCase() != demoEmail || password != demoPassword) {
+        if (email.trim().toLowerCase() != demoEmail || password != _password) {
           throw const ApiException(status: 401, code: 'AUTH_UNAUTHENTICATED', title: 'Unauthorized', detail: 'invalid email or password');
         }
         _signedIn = true;
@@ -75,6 +76,28 @@ class MockApiClient with MockEngage implements ApiClient {
 
   @override
   Future<void> logout() => _t(() => _signedIn = false);
+
+  @override
+  Future<void> changePassword({required String currentPassword, required String newPassword}) => _t(() {
+        _requireAuth();
+        if (currentPassword != _password) {
+          throw const ApiException(status: 422, code: 'VALIDATION_FAILED', title: 'Validation failed', errors: [FieldError('currentPassword', 'รหัสผ่านปัจจุบันไม่ถูกต้อง')]);
+        }
+        if (newPassword.length < 8 || newPassword.length > 128) {
+          throw const ApiException(status: 422, code: 'VALIDATION_FAILED', title: 'Validation failed', errors: [FieldError('newPassword', 'รหัสผ่านต้องยาว 8–128 ตัวอักษร')]);
+        }
+        if (newPassword == currentPassword) {
+          throw const ApiException(status: 422, code: 'VALIDATION_FAILED', title: 'Validation failed', errors: [FieldError('newPassword', 'ต้องต่างจากรหัสผ่านเดิม')]);
+        }
+        _password = newPassword;
+        _signedIn = false; // every session is revoked
+      });
+
+  @override
+  Future<void> deleteAccount() => _t(() {
+        _requireAuth();
+        _signedIn = false;
+      });
 
   @override
   Future<UserProfile> me() => _t(() {

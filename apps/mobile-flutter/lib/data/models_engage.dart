@@ -189,24 +189,104 @@ class SupportTicket {
 }
 
 class Post {
-  const Post({required this.id, required this.authorId, required this.type, required this.destination, required this.text, required this.likeCount, required this.hasImage, required this.createdAt, this.liked = false, this.sharedDays});
-  final int id, likeCount;
-  final String authorId, type, destination, text;
-  final bool hasImage, liked;
-  final int? sharedDays;
+  const Post({
+    required this.id,
+    required this.authorId,
+    required this.type,
+    required this.destination,
+    required this.text,
+    required this.likeCount,
+    required this.hasImage,
+    required this.createdAt,
+    this.liked = false,
+    this.saved = false,
+    this.sharedDays,
+    this.authorName = '',
+    this.commentCount = 0,
+    this.groupId,
+  });
+  final int id, likeCount, commentCount;
+  final String authorId, authorName, type, destination, text;
+  final bool hasImage, liked, saved;
+  final int? sharedDays, groupId;
   final DateTime createdAt;
-  Post withLike(bool liked, int count) => Post(
-      id: id, authorId: authorId, type: type, destination: destination, text: text, likeCount: count, hasImage: hasImage, createdAt: createdAt, liked: liked, sharedDays: sharedDays);
+
+  /// Name to show: the server's display name, else the member id without its `m_` prefix.
+  String get displayName => authorName.isNotEmpty ? authorName : authorId.replaceFirst('m_', '');
+
+  Post copyWith({bool? liked, int? likeCount, bool? saved, int? commentCount}) => Post(
+      id: id,
+      authorId: authorId,
+      authorName: authorName,
+      type: type,
+      destination: destination,
+      text: text,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
+      hasImage: hasImage,
+      createdAt: createdAt,
+      liked: liked ?? this.liked,
+      saved: saved ?? this.saved,
+      sharedDays: sharedDays,
+      groupId: groupId);
+  Post withLike(bool liked, int count) => copyWith(liked: liked, likeCount: count);
   factory Post.fromJson(Map<String, Object?> j) => Post(
         id: _i(j['id']),
         authorId: j['authorId'] as String? ?? '',
+        authorName: j['authorName'] as String? ?? '',
         type: j['type'] as String? ?? 'story',
         destination: j['destination'] as String? ?? '',
         text: j['text'] as String? ?? '',
         likeCount: _i(j['likeCount']),
+        commentCount: _i(j['commentCount']),
         hasImage: j['hasImage'] as bool? ?? false,
+        liked: j['liked'] as bool? ?? false,
+        saved: j['saved'] as bool? ?? false,
         createdAt: _t(j['createdAt']),
+        groupId: j['groupId'] == null ? null : _i(j['groupId']),
         sharedDays: j['sharedTrip'] == null ? null : _i(_m(j['sharedTrip'])['days']),
+      );
+}
+
+class Comment {
+  const Comment({required this.id, required this.authorId, required this.authorName, required this.text, required this.createdAt});
+  final int id;
+  final String authorId, authorName, text;
+  final DateTime createdAt;
+  String get displayName => authorName.isNotEmpty ? authorName : authorId.replaceFirst('m_', '');
+  factory Comment.fromJson(Map<String, Object?> j) => Comment(
+        id: _i(j['id']),
+        authorId: j['authorId'] as String? ?? '',
+        authorName: j['authorName'] as String? ?? '',
+        text: j['text'] as String? ?? '',
+        createdAt: _t(j['createdAt']),
+      );
+}
+
+class PostDetail {
+  const PostDetail(this.post, this.comments);
+  final Post post;
+  final List<Comment> comments;
+  factory PostDetail.fromJson(Map<String, Object?> j) => PostDetail(Post.fromJson(j), _list(j['comments']).map(Comment.fromJson).toList());
+}
+
+class Group {
+  const Group({required this.id, required this.name, required this.description, this.destination, this.memberCount = 0, this.joined = false, this.rules = const []});
+  final int id, memberCount;
+  final String name, description;
+  final String? destination;
+  final bool joined;
+  final List<String> rules;
+  Group copyWith({bool? joined, int? memberCount}) => Group(
+      id: id, name: name, description: description, destination: destination, memberCount: memberCount ?? this.memberCount, joined: joined ?? this.joined, rules: rules);
+  factory Group.fromJson(Map<String, Object?> j) => Group(
+        id: _i(j['id']),
+        name: j['name'] as String? ?? '',
+        description: j['description'] as String? ?? '',
+        destination: j['destination'] as String?,
+        memberCount: _i(j['memberCount']),
+        joined: j['joined'] as bool? ?? false,
+        rules: ((j['rules'] as List?) ?? const []).map((e) => '$e').toList(),
       );
 }
 

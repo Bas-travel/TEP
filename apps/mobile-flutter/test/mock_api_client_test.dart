@@ -111,4 +111,39 @@ void main() {
     await expectField(api.createBooking(lines: const [BookingLine(1, 1)], startDate: end, endDate: start, idempotencyKey: 'k-order'), 'endDate');
     await expectField(api.createBooking(lines: const [BookingLine(1, 1)], guests: 21, idempotencyKey: 'k-guests'), 'guests');
   });
+
+  test('community write: validation, comments, save, groups and password change', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    Future<void> field(Future<Object?> f, String name) => expectLater(
+        f, throwsA(isA<ApiException>().having((e) => e.status, 'status', 422).having((e) => e.errors.map((x) => x.field), 'fields', contains(name))));
+    await field(api.createPost(type: 'story', destination: 'ภูเก็ต', text: 'สั้น'), 'text');
+    await field(api.createPost(type: 'trip', destination: 'ภูเก็ต', text: 'ข้อความยาวพอสมควรแล้ว'), 'type');
+    final p = await api.createPost(type: 'tip', destination: 'ภูเก็ต', text: 'ไปเช้าๆ คนน้อยและอากาศดี');
+    expect(p.id, greaterThan(5));
+    expect((await api.feed()).first.id, p.id);
+    await field(api.addComment(p.id, '   '), 'text');
+    final c = await api.addComment(p.id, 'ขอบคุณครับ');
+    final d = await api.postDetail(p.id);
+    expect(d.comments.single.id, c.id);
+    expect(d.post.commentCount, 1);
+    expect(await api.toggleSave(p.id), isTrue);
+    expect((await api.postDetail(p.id)).post.saved, isTrue);
+    expect(await api.toggleSave(p.id), isFalse);
+    await expectLater(api.postDetail(9999), throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)));
+
+    final g = (await api.groups()).firstWhere((x) => x.id == 1);
+    expect(await api.toggleGroup(1), isTrue);
+    expect((await api.group(1)).memberCount, g.memberCount + 1);
+    expect(await api.toggleGroup(1), isFalse);
+
+    await field(api.changePassword(currentPassword: 'wrong', newPassword: 'NewPassw0rd!'), 'currentPassword');
+    await field(api.changePassword(currentPassword: MockApiClient.demoPassword, newPassword: 'short'), 'newPassword');
+    await api.changePassword(currentPassword: MockApiClient.demoPassword, newPassword: 'NewPassw0rd!');
+    await expectLater(api.me(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+    await expectLater(api.login(MockApiClient.demoEmail, MockApiClient.demoPassword), throwsA(isA<ApiException>()));
+    await api.login(MockApiClient.demoEmail, 'NewPassw0rd!');
+    await api.deleteAccount();
+    await expectLater(api.wallet(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+  });
 }

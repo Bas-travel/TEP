@@ -32,8 +32,14 @@ mixin MockEngage implements ApiClient {
     Post(id: 4, authorId: 'm_nok', type: 'trip', destination: 'เกาะสมุย', text: 'แพลน 3 วัน 2 คืน งบ 8,000 แชร์ให้ครับ', likeCount: 27, hasImage: true, createdAt: mockNow().subtract(const Duration(days: 2)), sharedDays: 3),
     Post(id: 5, authorId: 'm_lek', type: 'story', destination: 'กรุงเทพฯ', text: 'สตรีทฟู้ดประตูผีคุ้มค่ามาก ไปตอนค่ำ', likeCount: 61, hasImage: true, createdAt: mockNow().subtract(const Duration(days: 3))),
   ];
-  final Set<int> _liked = {};
-  int _nextTrip = 1, _nextReview = 1, _nextTicket = 1;
+  final Set<int> _liked = {}, _saved = {};
+  final Map<int, List<Comment>> _comments = {};
+  int _nextTrip = 1, _nextReview = 1, _nextTicket = 1, _nextPost = 6, _nextComment = 1;
+  late final List<Group> _groups = [
+    const Group(id: 1, name: 'สายทะเลอันดามัน', description: 'แชร์ที่เที่ยวและร้านอาหารฝั่งอันดามัน', destination: 'ภูเก็ต', memberCount: 2, rules: ['สุภาพและให้เกียรติกัน', 'ห้ามโฆษณาโดยไม่ได้รับอนุญาต']),
+    const Group(id: 2, name: 'เที่ยวเหนือ', description: 'ดอย ธรรมชาติ และคาเฟ่ภาคเหนือ', destination: 'เชียงใหม่', memberCount: 1, rules: ['สุภาพและให้เกียรติกัน']),
+    const Group(id: 3, name: 'สตรีทฟู้ดกรุงเทพฯ', description: 'ของกินริมทางที่ต้องลอง', destination: 'กรุงเทพฯ', memberCount: 1, rules: ['รีวิวตามจริง']),
+  ];
 
   Future<T> _e<T>(T Function() f) async {
     if (mockLatency > Duration.zero) await Future<void>.delayed(mockLatency);
@@ -152,7 +158,7 @@ mixin MockEngage implements ApiClient {
         Iterable<Post> l = _posts;
         if (mode == 'following') l = l.where((p) => p.authorId == 'm_nok' || p.authorId == 'm_pim');
         if (destination != null && destination.isNotEmpty) l = l.where((p) => p.destination == destination);
-        return l.map((p) => p.withLike(_liked.contains(p.id), p.likeCount)).toList();
+        return l.map(_view).toList();
       });
 
   @override
@@ -165,5 +171,64 @@ mixin MockEngage implements ApiClient {
         final count = p.likeCount + (liked ? 1 : -1);
         _posts[i] = p.withLike(liked, count);
         return LikeResult(liked, count);
+      });
+
+  Post _view(Post p) => p.copyWith(liked: _liked.contains(p.id), saved: _saved.contains(p.id), commentCount: (_comments[p.id] ?? const []).length);
+
+  ApiException get _notFound => const ApiException(status: 404, code: 'NOT_FOUND', title: 'Not Found');
+
+  @override
+  Future<bool> toggleSave(int postId) => _e(() {
+        if (!_posts.any((p) => p.id == postId)) throw _notFound;
+        final saved = _saved.add(postId);
+        if (!saved) _saved.remove(postId);
+        return saved;
+      });
+
+  @override
+  Future<Post> createPost({required String type, required String destination, required String text, int? groupId}) => _e(() {
+        final t = text.trim();
+        if (!const {'story', 'tip', 'question'}.contains(type)) throw _invalid('type', 'ประเภทไม่ถูกต้อง');
+        if (t.runes.length < 10 || t.runes.length > 500) throw _invalid('text', 'ข้อความต้องยาว 10–500 ตัวอักษร');
+        if (groupId != null && !_groups.any((g) => g.id == groupId)) throw _invalid('groupId', 'ไม่พบกลุ่ม');
+        final p = Post(id: _nextPost++, authorId: 'm_1', authorName: 'สวัสดี อ.', type: type, destination: destination, text: t, likeCount: 0, hasImage: false, createdAt: mockNow(), groupId: groupId);
+        _posts.insert(0, p);
+        return _view(p);
+      });
+
+  @override
+  Future<PostDetail> postDetail(int postId) => _e(() {
+        final i = _posts.indexWhere((p) => p.id == postId);
+        if (i < 0) throw _notFound;
+        return PostDetail(_view(_posts[i]), List.of(_comments[postId] ?? const []));
+      });
+
+  @override
+  Future<Comment> addComment(int postId, String text) => _e(() {
+        if (!_posts.any((p) => p.id == postId)) throw _notFound;
+        final t = text.trim();
+        if (t.isEmpty || t.runes.length > 1000) throw _invalid('text', 'ความคิดเห็นต้องยาว 1–1000 ตัวอักษร');
+        final c = Comment(id: _nextComment++, authorId: 'm_1', authorName: 'สวัสดี อ.', text: t, createdAt: mockNow());
+        (_comments[postId] ??= []).add(c);
+        return c;
+      });
+
+  @override
+  Future<List<Group>> groups() => _e(() => List.of(_groups));
+
+  @override
+  Future<Group> group(int id) => _e(() {
+        final i = _groups.indexWhere((g) => g.id == id);
+        if (i < 0) throw _notFound;
+        return _groups[i];
+      });
+
+  @override
+  Future<bool> toggleGroup(int id) => _e(() {
+        final i = _groups.indexWhere((g) => g.id == id);
+        if (i < 0) throw _notFound;
+        final g = _groups[i];
+        _groups[i] = g.copyWith(joined: !g.joined, memberCount: g.memberCount + (g.joined ? -1 : 1));
+        return _groups[i].joined;
       });
 }

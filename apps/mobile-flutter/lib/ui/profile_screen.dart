@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_scope.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
+import 'community_extra.dart';
 import 'widgets/common.dart';
 
 /// Board 1.20 — profile, plus 1.23 help center (FAQ) entry and logout.
@@ -48,16 +49,53 @@ class ProfileScreen extends StatelessWidget {
             ),
             const Divider(height: 1),
             ListTile(
+              key: const Key('open-change-password'),
+              leading: const Icon(Icons.lock_outline_rounded, color: TepColors.primary),
+              title: const Text('เปลี่ยนรหัสผ่าน'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ChangePasswordScreen())),
+            ),
+            const Divider(height: 1),
+            ListTile(
               key: const Key('logout'),
               leading: const Icon(Icons.logout_rounded, color: TepColors.danger),
               title: const Text('ออกจากระบบ', style: TextStyle(color: TepColors.danger)),
               onTap: () => guarded(context, session.logout),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              key: const Key('delete-account'),
+              leading: const Icon(Icons.delete_forever_rounded, color: TepColors.danger),
+              title: const Text('ลบบัญชี', style: TextStyle(color: TepColors.danger)),
+              subtitle: const Text('ข้อมูลส่วนตัวและโพสต์จะถูกลบ ประวัติการจองยังเก็บไว้ตามกฎหมาย'),
+              onTap: () => _confirmDelete(context),
             ),
           ]),
         ),
       ]),
     );
   }
+}
+
+Future<void> _confirmDelete(BuildContext context) async {
+  final session = AppScope.of(context);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('ลบบัญชีถาวร?'),
+      content: const Text('การลบไม่สามารถย้อนกลับได้'),
+      actions: [
+        TextButton(key: const Key('delete-cancel'), onPressed: () => Navigator.of(ctx).pop(false), child: const Text('ยกเลิก')),
+        FilledButton(key: const Key('delete-confirm'), style: FilledButton.styleFrom(backgroundColor: TepColors.danger), onPressed: () => Navigator.of(ctx).pop(true), child: const Text('ลบบัญชี')),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final done = await guarded(context, () async {
+    await session.api.deleteAccount();
+    return true;
+  });
+  if (done == true) await session.logout();
 }
 
 class FaqScreen extends StatelessWidget {

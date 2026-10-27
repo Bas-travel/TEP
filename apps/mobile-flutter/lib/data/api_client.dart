@@ -60,4 +60,17 @@ abstract class ApiClient {
 
   Future<List<Post>> feed({String mode = 'all', String? destination});
   Future<LikeResult> toggleLike(int postId);
+  Future<bool> toggleSave(int postId);
+  Future<Post> createPost({required String type, required String destination, required String text, int? groupId});
+  Future<PostDetail> postDetail(int postId);
+  Future<Comment> addComment(int postId, String text);
+  Future<List<Group>> groups();
+  Future<Group> group(int id);
+
+  /// Returns true when the caller is now a member.
+  Future<bool> toggleGroup(int id);
+
+  // ---- account ----
+  Future<void> changePassword({required String currentPassword, required String newPassword});
+  Future<void> deleteAccount();
 }

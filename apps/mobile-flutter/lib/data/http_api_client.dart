@@ -243,4 +243,39 @@ class HttpApiClient implements ApiClient {
     final j = await _call('POST', _uri('/community/posts/$postId/like'));
     return LikeResult(j['liked'] as bool? ?? false, (j['likeCount'] as num?)?.toInt() ?? 0);
   }
+
+  @override
+  Future<bool> toggleSave(int postId) async => (await _call('POST', _uri('/community/posts/$postId/save')))['saved'] as bool? ?? false;
+
+  @override
+  Future<Post> createPost({required String type, required String destination, required String text, int? groupId}) async => Post.fromJson(
+      await _call('POST', _uri('/community/posts'), body: {'type': type, 'destination': destination, 'text': text, if (groupId != null) 'groupId': groupId}));
+
+  @override
+  Future<PostDetail> postDetail(int postId) async => PostDetail.fromJson(await _call('GET', _uri('/community/posts/$postId')));
+
+  @override
+  Future<Comment> addComment(int postId, String text) async =>
+      Comment.fromJson(await _call('POST', _uri('/community/posts/$postId/comments'), body: {'text': text}));
+
+  @override
+  Future<List<Group>> groups() async => _items(await _call('GET', _uri('/community/groups'))).map(Group.fromJson).toList();
+
+  @override
+  Future<Group> group(int id) async => Group.fromJson(await _call('GET', _uri('/community/groups/$id')));
+
+  @override
+  Future<bool> toggleGroup(int id) async => (await _call('POST', _uri('/community/groups/$id/join')))['joined'] as bool? ?? false;
+
+  @override
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await _call('PUT', _uri('/auth/password'), body: {'currentPassword': currentPassword, 'newPassword': newPassword});
+    _tokens = null; // the server revoked every session; the caller returns to the login screen
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await _call('DELETE', _uri('/me'));
+    _tokens = null;
+  }
 }
