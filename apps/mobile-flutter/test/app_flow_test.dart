@@ -116,7 +116,8 @@ void main() {
   Future<void> openCommunity(WidgetTester tester) async {
     await tester.tap(find.byKey(const Key('home-menu')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.byKey(const Key('menu-community')), 200);
+    await tester.ensureVisible(find.byKey(const Key('menu-community')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('menu-community')));
     await tester.pumpAndSettle();
   }
