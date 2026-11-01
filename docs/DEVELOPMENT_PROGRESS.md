@@ -54,3 +54,12 @@ A first startup using the default host ports collided with an existing MinIO sta
 3. Run `docker compose config` and, when Docker is available, `docker compose up --build`.
 4. Run Flutter `pub get`, `flutter analyze`, and `flutter test`.
 5. Replace remaining placeholder/deferred screens only when their dependencies and authorization are available.
+
+## Git baseline update 2026-11-01
+
+- [x] Documentation commit `0043892` created on `main`.
+- [x] Commit pushed to `origin/main` successfully.
+- [x] No force push used.
+- [x] No `.env` or secret file included.
+- [ ] `apps/mobile-flutter/analysis_options.yaml` remains a separate uncommitted user change.
+- [ ] `04.png` remains an untracked attachment and is not part of the repository baseline commit.
