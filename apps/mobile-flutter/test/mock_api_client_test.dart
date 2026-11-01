@@ -1,0 +1,149 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tep_mobile/data/api_client.dart';
+import 'package:tep_mobile/data/mock_api_client.dart';
+import 'package:tep_mobile/data/models.dart';
+
+MockApiClient fresh() => MockApiClient(latency: Duration.zero, settleAfter: Duration.zero);
+
+void main() {
+  test('rejects unauthenticated calls and bad credentials', () async {
+    final api = fresh();
+    await expectLater(api.wallet(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+    await expectLater(api.login('demo@tep.dev', 'wrong'), throwsA(isA<ApiException>()));
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    expect((await api.me()).firstName, 'สวัสดี');
+  });
+
+  test('catalog search filters by type, query, destination and paginates', () async {
+    final api = fresh();
+    final hotels = await api.listings(type: 'hotel');
+    expect(hotels.items.every((l) => l.type == 'hotel'), isTrue);
+    expect(hotels.items.length, 5);
+    final phuket = await api.listings(destinationId: 1);
+    expect(phuket.items.length, 4);
+    expect((await api.listings(q: 'kata')).items.single.id, 2);
+    final p1 = await api.listings(limit: 5);
+    expect(p1.items.length, 5);
+    expect(p1.nextCursor, '5');
+    final p2 = await api.listings(limit: 5, cursor: p1.nextCursor);
+    expect(p2.items.length, 5);
+    expect({...p1.items.map((e) => e.id), ...p2.items.map((e) => e.id)}.length, 10);
+  });
+
+  test('booking priced like the API: subtotal + 3% fee, WELCOME10 discount', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    final b = await api.createBooking(lines: [const BookingLine(1, 1)], idempotencyKey: 'a');
+    expect(b.subtotal, 3200);
+    expect(b.serviceFee, 96);
+    expect(b.amount, 3296);
+    expect(b.status, 'pending_payment');
+    final b2 = await api.createBooking(lines: [const BookingLine(1, 1)], couponCode: 'welcome10', idempotencyKey: 'b');
+    expect(b2.amount, 3200 + 96 - 320);
+    await expectLater(api.createBooking(lines: [const BookingLine(6, 1)], couponCode: 'WELCOME10', idempotencyKey: 'c'), throwsA(isA<ApiException>()));
+  });
+
+  test('idempotency key replays the same booking and intent', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    final a = await api.createBooking(lines: [const BookingLine(7, 1)], idempotencyKey: 'same');
+    final b = await api.createBooking(lines: [const BookingLine(7, 1)], idempotencyKey: 'same');
+    expect(b.id, a.id);
+    expect((await api.bookings()).length, 1);
+    final i1 = await api.createIntent(bookingId: a.id, method: 'wallet', idempotencyKey: 'pay');
+    final i2 = await api.createIntent(bookingId: a.id, method: 'wallet', idempotencyKey: 'pay');
+    expect(i2.id, i1.id);
+    expect((await api.wallet()).balance, closeTo(1500 - a.amount, 0.001)); // charged once
+  });
+
+  test('wallet payment confirms booking and debits; cancel refunds', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    final b = await api.createBooking(lines: [const BookingLine(7, 1)], idempotencyKey: 'k1'); // 990 + 29.70
+    final pi = await api.createIntent(bookingId: b.id, method: 'wallet', idempotencyKey: 'p1');
+    expect(pi.status, 'succeeded');
+    expect((await api.booking(b.id)).status, 'confirmed');
+    expect((await api.wallet()).balance, closeTo(1500 - b.amount, 0.001));
+    final c = await api.cancelBooking(b.id, 'เปลี่ยนแผน');
+    expect(c.status, 'cancelled');
+    expect(c.refundAmount, b.amount);
+    expect((await api.wallet()).balance, closeTo(1500, 0.001));
+  });
+
+  test('wallet short returns 402 WALLET_INSUFFICIENT', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    final b = await api.createBooking(lines: [const BookingLine(8, 1)], idempotencyKey: 'k2'); // 4200+
+    await expectLater(
+      api.createIntent(bookingId: b.id, method: 'wallet', idempotencyKey: 'p2'),
+      throwsA(isA<ApiException>().having((e) => e.status, 'status', 402).having((e) => e.isWalletShort, 'short', isTrue)),
+    );
+  });
+
+  test('promptpay settles to confirmed; top-up credits wallet after settle', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    final b = await api.createBooking(lines: [const BookingLine(1, 1)], idempotencyKey: 'k3');
+    final pi = await api.createIntent(bookingId: b.id, method: 'promptpay', idempotencyKey: 'p3');
+    expect(pi.status, 'pending');
+    expect(pi.promptPayQrUrl, isNotNull);
+    expect((await api.intent(pi.id)).succeeded, isTrue); // settleAfter = 0
+    expect((await api.booking(b.id)).status, 'confirmed');
+    await api.topUp(500);
+    expect((await api.wallet()).balance, 2000);
+  });
+  test('booking keeps start/end date and guests; rejects past dates and bad guests', () async {
+    final api = fresh();
+    await api.login('demo@tep.dev', 'Passw0rd!');
+    final start = DateTime.now().add(const Duration(days: 3));
+    final end = start.add(const Duration(days: 2));
+    final b = await api.createBooking(lines: const [BookingLine(1, 1)], startDate: start, endDate: end, guests: 3, idempotencyKey: 'k-dates');
+    expect(b.guests, 3);
+    expect(b.startDate, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
+    expect(b.endDate, isNotNull);
+    final again = await api.booking(b.id);
+    expect(again.startDate, b.startDate);
+    expect(again.guests, 3);
+
+    Future<void> expectField(Future<BookingDetail> f, String field) => expectLater(
+        f, throwsA(isA<ApiException>().having((e) => e.status, 'status', 422).having((e) => e.errors.map((x) => x.field), 'fields', contains(field))));
+    await expectField(api.createBooking(lines: const [BookingLine(1, 1)], startDate: DateTime.now().subtract(const Duration(days: 3)), idempotencyKey: 'k-past'), 'startDate');
+    await expectField(api.createBooking(lines: const [BookingLine(1, 1)], startDate: end, endDate: start, idempotencyKey: 'k-order'), 'endDate');
+    await expectField(api.createBooking(lines: const [BookingLine(1, 1)], guests: 21, idempotencyKey: 'k-guests'), 'guests');
+  });
+
+  test('community write: validation, comments, save, groups and password change', () async {
+    final api = fresh();
+    await api.login(MockApiClient.demoEmail, MockApiClient.demoPassword);
+    Future<void> field(Future<Object?> f, String name) => expectLater(
+        f, throwsA(isA<ApiException>().having((e) => e.status, 'status', 422).having((e) => e.errors.map((x) => x.field), 'fields', contains(name))));
+    await field(api.createPost(type: 'story', destination: 'ภูเก็ต', text: 'สั้น'), 'text');
+    await field(api.createPost(type: 'trip', destination: 'ภูเก็ต', text: 'ข้อความยาวพอสมควรแล้ว'), 'type');
+    final p = await api.createPost(type: 'tip', destination: 'ภูเก็ต', text: 'ไปเช้าๆ คนน้อยและอากาศดี');
+    expect(p.id, greaterThan(5));
+    expect((await api.feed()).first.id, p.id);
+    await field(api.addComment(p.id, '   '), 'text');
+    final c = await api.addComment(p.id, 'ขอบคุณครับ');
+    final d = await api.postDetail(p.id);
+    expect(d.comments.single.id, c.id);
+    expect(d.post.commentCount, 1);
+    expect(await api.toggleSave(p.id), isTrue);
+    expect((await api.postDetail(p.id)).post.saved, isTrue);
+    expect(await api.toggleSave(p.id), isFalse);
+    await expectLater(api.postDetail(9999), throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)));
+
+    final g = (await api.groups()).firstWhere((x) => x.id == 1);
+    expect(await api.toggleGroup(1), isTrue);
+    expect((await api.group(1)).memberCount, g.memberCount + 1);
+    expect(await api.toggleGroup(1), isFalse);
+
+    await field(api.changePassword(currentPassword: 'wrong', newPassword: 'NewPassw0rd!'), 'currentPassword');
+    await field(api.changePassword(currentPassword: MockApiClient.demoPassword, newPassword: 'short'), 'newPassword');
+    await api.changePassword(currentPassword: MockApiClient.demoPassword, newPassword: 'NewPassw0rd!');
+    await expectLater(api.me(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+    await expectLater(api.login(MockApiClient.demoEmail, MockApiClient.demoPassword), throwsA(isA<ApiException>()));
+    await api.login(MockApiClient.demoEmail, 'NewPassw0rd!');
+    await api.deleteAccount();
+    await expectLater(api.wallet(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
+  });
+}

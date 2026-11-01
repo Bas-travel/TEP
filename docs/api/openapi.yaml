@@ -3,7 +3,7 @@ info:
   title: TEP Travel API
   version: 0.1.0
   description: |
-    Sabai Travel / TEP — Go + Gin backend contract.
+    Sabai jai Travel / TEP — backend contract (Go; net/http in Sprint 1, see ADR-004).
     DEV may use mock adapters; BETA/PROD use MySQL + Redis + object storage.
 servers:
   - url: https://api.beta.example.com/v1
@@ -30,11 +30,47 @@ tags:
   - name: Media
   - name: Devices
   - name: Webhooks
+  - name: Health
 
 security:
   - bearerAuth: []
 
 paths:
+  /health/live:
+    get:
+      tags: [Health]
+      security: []
+      summary: Liveness probe (served at server root, not under /v1)
+      operationId: healthLive
+      servers:
+        - url: http://localhost:8080
+      responses:
+        '200':
+          description: Process is up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /health/ready:
+    get:
+      tags: [Health]
+      security: []
+      summary: Readiness probe — checks MySQL and Redis (served at server root)
+      operationId: healthReady
+      servers:
+        - url: http://localhost:8080
+      responses:
+        '200':
+          description: All dependencies reachable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: A dependency is down
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
   /auth/register:
     post:
       tags: [Auth]
@@ -48,6 +84,10 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
           description: Registered
           content:
@@ -74,6 +114,10 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, format: password }
       responses:
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: OK
           content:
@@ -99,12 +143,40 @@ paths:
               properties:
                 refreshToken: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthTokens'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke current session (refresh token)
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /auth/password:
     put:
@@ -122,6 +194,12 @@ paths:
                 currentPassword: { type: string }
                 newPassword: { type: string, minLength: 8 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: Updated
 
@@ -131,7 +209,14 @@ paths:
       summary: Current user profile
       operationId: getMe
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -141,6 +226,12 @@ paths:
       summary: Delete account
       operationId: deleteAccount
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: Scheduled or completed deletion
 
@@ -150,7 +241,14 @@ paths:
       summary: App settings
       operationId: getSettings
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -165,7 +263,16 @@ paths:
             schema:
               $ref: '#/components/schemas/UserSettings'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -178,7 +285,10 @@ paths:
       operationId: listDestinations
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -213,7 +323,10 @@ paths:
           in: query
           schema: { type: integer, default: 20, maximum: 50 }
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -228,7 +341,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ListingId'
       responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -244,9 +362,16 @@ paths:
           in: query
           schema:
             type: string
-            enum: [all, confirmed, completed, cancelled]
+            enum: [all, pending_payment, confirmed, completed, cancelled]
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -269,7 +394,18 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateBookingRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -283,7 +419,16 @@ paths:
       parameters:
         - $ref: '#/components/parameters/BookingId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -306,7 +451,18 @@ paths:
               properties:
                 reason: { type: string, maxLength: 500 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -332,7 +488,18 @@ paths:
                   type: string
                   enum: [promptpay, card, wallet]
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -349,7 +516,16 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -361,7 +537,14 @@ paths:
       summary: Wallet balance and recent transactions
       operationId: getWallet
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -383,7 +566,16 @@ paths:
                 amount: { type: number, minimum: 1 }
                 method: { type: string, enum: [promptpay] }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
+          description: OK
           content:
             application/json:
               schema:
@@ -401,7 +593,14 @@ paths:
             schema:
               $ref: '#/components/schemas/ItineraryRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
+          description: OK
           content:
             application/json:
               schema:
@@ -418,7 +617,14 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -430,7 +636,14 @@ paths:
       summary: List saved trips
       operationId: listSavedTrips
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -450,7 +663,16 @@ paths:
             schema:
               $ref: '#/components/schemas/SavedTripInput'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -467,7 +689,16 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -479,7 +710,14 @@ paths:
       summary: My reviews
       operationId: listMyReviews
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -500,7 +738,16 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateReviewRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -512,7 +759,12 @@ paths:
       summary: My coupons
       operationId: listCoupons
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -541,7 +793,16 @@ paths:
               properties:
                 bookingDraftTotal: { type: number }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -553,7 +814,12 @@ paths:
       summary: In-app notifications
       operationId: listNotifications
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -563,11 +829,17 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Notification'
+
+  /notifications/read-all:
     post:
       tags: [Notifications]
       summary: Mark all read
       operationId: markAllNotificationsRead
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: OK
 
@@ -582,6 +854,12 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: OK
 
@@ -592,7 +870,10 @@ paths:
       operationId: listFaqs
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -609,7 +890,14 @@ paths:
       summary: My support tickets
       operationId: listSupportTickets
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -634,7 +922,16 @@ paths:
                 subject: { type: string, maxLength: 120 }
                 message: { type: string, maxLength: 2000 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -656,7 +953,14 @@ paths:
           in: query
           schema: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -674,7 +978,16 @@ paths:
             schema:
               $ref: '#/components/schemas/CreatePostRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -688,7 +1001,16 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PostId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -700,6 +1022,14 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PostId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: Deleted
 
@@ -720,7 +1050,18 @@ paths:
               properties:
                 text: { type: string, maxLength: 1000 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -734,7 +1075,16 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PostId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -751,7 +1101,16 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PostId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -767,6 +1126,14 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PostId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: Hidden
 
@@ -789,6 +1156,16 @@ paths:
                   type: string
                   enum: [spam, misinformation, harassment, privacy, other]
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: Reported
 
@@ -798,7 +1175,14 @@ paths:
       summary: List groups
       operationId: listGroups
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -820,7 +1204,16 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -837,7 +1230,16 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -856,7 +1258,16 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -873,7 +1284,16 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -889,7 +1309,16 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PostId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '201':
+          description: OK
           content:
             application/json:
               schema:
@@ -911,14 +1340,24 @@ paths:
                 contentType: { type: string }
                 purpose: { type: string, enum: [listing_image, post_image, avatar] }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
+          description: OK
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  uploadUrl: { type: string, format: uri }
+                  uploadUrl: { type: string, format: uri, description: PUT the file here with the same Content-Type }
                   objectKey: { type: string }
+                  expiresIn: { type: integer, description: Seconds the URL stays valid }
 
   /devices/push-tokens:
     post:
@@ -936,6 +1375,12 @@ paths:
                 token: { type: string }
                 platform: { type: string, enum: [ios, android] }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: Registered
 
@@ -950,9 +1395,33 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - name: X-Signature
+          in: header
+          required: true
+          description: Hex HMAC-SHA256 of the raw body keyed with WEBHOOK_SECRET; the endpoint answers 404 while no secret is configured
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, intentId, status]
+              properties:
+                eventId: { type: string, maxLength: 120, description: Provider event id; each (provider, eventId) is processed once }
+                intentId: { type: string }
+                status: { type: string, enum: [succeeded, failed] }
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
-          description: Acknowledged
+          description: Acknowledged (also returned for a replayed event)
 
 components:
   securitySchemes:
@@ -989,15 +1458,71 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing, expired or invalid access token (code AUTH_UNAUTHENTICATED)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PaymentRequired:
+      description: Insufficient wallet balance or payment required (code WALLET_INSUFFICIENT)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Authenticated but not allowed (code AUTH_FORBIDDEN)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource not found or not owned by caller (code NOT_FOUND)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ValidationFailed:
+      description: Validation error; see errors[] (code VALIDATION_FAILED)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Rate limited; see Retry-After header (code RATE_LIMITED)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
 
   schemas:
     Problem:
       type: object
+      required: [title, status, code]
       properties:
         type: { type: string }
         title: { type: string }
         status: { type: integer }
         detail: { type: string }
+        code: { type: string, description: 'Stable machine-readable code, e.g. VALIDATION_FAILED' }
+        requestId: { type: string }
+        errors:
+          type: array
+          description: Field-level validation errors
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    Health:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        version: { type: string }
+        checks:
+          type: object
+          additionalProperties: { type: string, enum: [ok, down, disabled] }
 
     AuthTokens:
       type: object
@@ -1025,12 +1550,24 @@ components:
         travelWith: { type: string }
 
     UserProfile:
-      allOf:
-        - $ref: '#/components/schemas/RegisterRequest'
-        - type: object
-          properties:
-            id: { type: integer, format: int64 }
-            level: { type: string }
+      description: Profile as returned by GET /me. Never contains password material.
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        level: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        gender: { type: string }
+        dateOfBirth: { type: string, format: date }
+        nationality: { type: string }
+        language: { type: string }
+        budgetLevel: { type: string, enum: [budget, mid, luxury] }
+        travelStyles: { type: array, items: { type: string } }
+        favoriteDestination: { type: string }
+        travelWith: { type: string }
+        avatarUrl: { type: string, format: uri }
 
     UserSettings:
       type: object
@@ -1069,6 +1606,7 @@ components:
         rating: { type: number }
         reviewCount: { type: integer }
         priceFrom: { type: number }
+        imageUrl: { type: string, format: uri, description: Card thumbnail (storage base URL + hero_image_key) }
 
     ListingDetail:
       allOf:
@@ -1102,6 +1640,9 @@ components:
             properties:
               listingId: { type: integer, format: int64 }
               quantity: { type: integer, default: 1 }
+        startDate: { type: string, format: date, description: 'Stay / visit / departure date (YYYY-MM-DD); not in the past' }
+        endDate: { type: string, format: date, description: 'Check-out / return date; requires startDate and must not be before it' }
+        guests: { type: integer, minimum: 1, maximum: 20, default: 1 }
         couponCode: { type: string }
         tripPackage:
           type: object
@@ -1122,7 +1663,10 @@ components:
         amount: { type: number }
         method: { type: string }
         date: { type: string, format: date-time }
-        status: { type: string, enum: [confirmed, completed, cancelled] }
+        status: { type: string, enum: [pending_payment, confirmed, completed, cancelled] }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        guests: { type: integer }
 
     BookingDetail:
       allOf:
@@ -1294,6 +1838,10 @@ components:
         text: { type: string }
         likeCount: { type: integer }
         hasImage: { type: boolean }
+        authorName: { type: string, description: 'Display name, e.g. "Nok S."' }
+        commentCount: { type: integer }
+        liked: { type: boolean, description: Whether the caller liked it }
+        saved: { type: boolean, description: Whether the caller saved it }
         sharedTrip:
           type: object
           nullable: true
@@ -1337,6 +1885,7 @@ components:
       properties:
         id: { type: integer, format: int64 }
         authorId: { type: string }
+        authorName: { type: string }
         text: { type: string }
         likeCount: { type: integer }
         isBestAnswer: { type: boolean }

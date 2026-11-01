@@ -1,0 +1,10 @@
+ALTER TABLE community_comments ADD KEY fk_cc_post (post_id), DROP KEY ix_comment_post;
+ALTER TABLE community_posts DROP KEY ix_post_dest, DROP KEY ix_post_feed;
+DROP TABLE post_hides;
+ALTER TABLE community_comments MODIFY body VARCHAR(500) NOT NULL;
+ALTER TABLE community_groups DROP KEY uk_group_name;
+ALTER TABLE community_groups DROP COLUMN rules;
+ALTER TABLE idempotency_keys MODIFY response_body JSON NOT NULL;
+ALTER TABLE bookings DROP COLUMN item_type;
+ALTER TABLE user_profiles DROP COLUMN bio;
+ALTER TABLE users DROP KEY uk_users_handle, DROP COLUMN handle;
