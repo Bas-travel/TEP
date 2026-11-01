@@ -103,3 +103,22 @@ Still NOT verified: OpenAPI validated by a real validator (none installable offl
 | R4-3 | Local WIP was inconsistent (`shell.dart` passed `onTab` that `HomeScreen` did not accept). | FIXED before commit |
 | R4-4 | Route/OpenAPI parity script: 37 Go routes, 0 outside the spec, 18 spec operations still unimplemented (listed in `qa/sprint-1-acceptance.md`). | NOTE |
 | R4-5 | `master` on the remote has unrelated history (README with merge-conflict markers). Not touched. | OPEN — owner decision |
+
+## Round 5 — repository and Sprint 1 baseline re-verification
+
+| # | Finding | Status |
+|---|---------|--------|
+| R5-1 | `apps/mobile-flutter/README.md` says booking dates are not sent to the API, but the current contract, migration, Go validation, and Flutter booking flow include `startDate`, `endDate`, and `guests`. The README note is stale. | OPEN — documentation correction required |
+| R5-2 | `docs/requirements/traceability-matrix.md` has the Sprint 1 implementation labels still describing mock/prototype-only work even though mock and DB repositories plus API tests now exist. | OPEN — status refresh required |
+| R5-3 | The UI implementation currently follows the approved **Sunset Journey** tokens and `Sabai jai Travel` brand, not the navy palette in the board image. Board parity is represented by screens/navigation while the owner-approved theme remains source of truth. | DOCUMENTED — no palette override |
+| R5-4 | No untracked `.env` or tracked secret file was found; `.env.example` contains DEV placeholders only and `.env` is ignored. | VERIFIED |
+| R5-5 | `go test ./...` passes on Go 1.26.5 for all currently available packages; the Windows environment reports Docker daemon and device/emulator verification as not yet executed. | VERIFIED API-only; Docker/Flutter pending |
+| R5-6 | The working tree contains an unrelated modified file `apps/mobile-flutter/analysis_options.yaml`; it will not be staged or overwritten by the documentation baseline. The prompt customization and uploaded image are separate untracked files. | DOCUMENTED |
+
+### Git baseline observed
+
+- Branch: `main`
+- Tracking: `origin/main`
+- Remote: `https://github.com/Bas-travel/TEP.git`
+- No staged documentation changes at review start.
+- Unrelated local analysis option change preserved.

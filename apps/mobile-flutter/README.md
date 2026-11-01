@@ -39,4 +39,10 @@ TEP_API_URL=http://127.0.0.1:8080 flutter test test/integration   # contract vs 
 ## Known limits
 - Tokens are kept in memory only (secure storage + auto-login: Sprint 2).
 - Listing images: API has no media yet, so the UI renders typed gradient thumbnails (`imageUrl` is honoured when present).
-- The booking date chosen in the UI is not sent: the API `POST /bookings` has no stay/visit date field yet (tracked in `docs/review/doc-review-findings.md`, F-1).
+- The booking date chosen in the UI is sent: the API `POST /bookings` has a stay/visit date field (tracked in `docs/review/doc-review-findings.md`, F-1).
+
+## Sprint status
+
+- Sprint 1 mock/client shell: implemented and CI-tested.
+- Booking dates, guests, and cancellation/refund flows: implemented in mock and DB-capable API paths.
+- Real device/emulator verification and local Docker daemon startup: still not verified in this workspace.

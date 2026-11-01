@@ -26,4 +26,4 @@
 | REQ-SUP-01 | FAQ + tickets | S25–S26 | support | support_tickets | UF-07 |
 | REQ-PRF-02 | Settings / theme | S30 | `/me/settings` | user prefs JSON | Widget |
 
-Classification today: requirements **documented**; implementation **NOT IMPLEMENTED** except prototype UI mock.
+Classification today: core Sprint 1/Sprint 2 traveler flows are implemented in mock and/or DB-backed API paths; external gateways, partner/admin/staff operations, maps, weather, and live chat remain deferred or require credentials/services.
