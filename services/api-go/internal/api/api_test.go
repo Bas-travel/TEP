@@ -108,7 +108,7 @@ func TestAuthFlowAndRefreshReuse(t *testing.T) {
 		t.Fatalf("me without token want 401 got %d", c)
 	}
 	code, me, _ := e.do("GET", "/v1/me", tok["accessToken"].(string), nil)
-	if code != 200 || me["email"] != "new@example.com" {
+	if code != 200 || me["email"] != "new@example.com" || me["role"] != "traveler" {
 		t.Fatal(code, me)
 	}
 	if _, has := me["password"]; has {

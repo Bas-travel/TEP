@@ -196,6 +196,7 @@ func (s *Server) getMe(w http.ResponseWriter, r *http.Request, uid int64) {
 		u, e := tx.UserByID(uid, false)
 		if e == nil {
 			p = u.Profile
+			p.Role = u.Role
 		}
 		return e
 	})

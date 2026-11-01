@@ -64,6 +64,7 @@ type RegisterRequest struct {
 type UserProfile struct {
 	ID                  int64    `json:"id"`
 	Level               string   `json:"level"`
+	Role                string   `json:"role"`
 	Email               string   `json:"email"`
 	Phone               string   `json:"phone,omitempty"`
 	FirstName           string   `json:"firstName"`

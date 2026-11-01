@@ -1568,6 +1568,7 @@ components:
         favoriteDestination: { type: string }
         travelWith: { type: string }
         avatarUrl: { type: string, format: uri }
+        role: { type: string, enum: [traveler, partner, staff, moderator, admin] }
 
     UserSettings:
       type: object

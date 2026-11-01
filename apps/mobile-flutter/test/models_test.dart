@@ -50,7 +50,10 @@ void main() {
     expect(e.code, 'VALIDATION_FAILED');
     expect(e.errors.single.field, 'couponCode');
     expect(e.userMessage, 'bad coupon');
-    expect(ApiException.fromJson(402, {'code': 'WALLET_INSUFFICIENT', 'title': 'x'}).isWalletShort, isTrue);
+    expect(
+        ApiException.fromJson(
+            402, {'code': 'WALLET_INSUFFICIENT', 'title': 'x'}).isWalletShort,
+        isTrue);
   });
 
   test('BookingDetail.fromJson keeps nullable refund', () {
@@ -69,5 +72,26 @@ void main() {
     });
     expect(b.refundAmount, isNull);
     expect(b.date.isUtc, isTrue);
+  });
+
+  test('UserProfile normalizes supported access roles', () {
+    final traveler = UserProfile.fromJson({
+      'id': 1,
+      'email': 'a@b.com',
+      'firstName': 'A',
+      'lastName': 'B',
+      'role': 'traveler'
+    });
+    final unknown = UserProfile.fromJson({
+      'id': 2,
+      'email': 'b@c.com',
+      'firstName': 'B',
+      'lastName': 'C',
+      'role': 'owner'
+    });
+    expect(traveler.role, AccessRole.traveler);
+    expect(unknown.role, AccessRole.traveler);
+    expect(AccessRole.canPreviewPortal(AccessRole.admin), isTrue);
+    expect(AccessRole.canPreviewPortal(AccessRole.traveler), isFalse);
   });
 }

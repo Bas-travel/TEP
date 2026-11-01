@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens — theme "Sunset Journey" (owner decision 2026-10-25), brand "Sabai jai Travel".
-/// Primary #C2410C · Secondary #FB923C · Background #FFF8F3 · Surface #FFFFFF · Accent #EAB308 · Text #431D12.
+/// TEP brand tokens — "Sunset Journey".
+/// Brand board: warm, friendly, playful, and WCAG-conscious.
 class TepColors {
-  static const primary = Color(0xFFC2410C); // headers, primary buttons, active icons (white text: 5.2:1)
-  static const primaryDeep = Color(0xFF9A3412); // gradient start / pressed
-  static const secondary = Color(0xFFFB923C); // highlights; use ink text on it, never white
-  static const background = Color(0xFFFFF8F3);
+  static const primary = Color(0xFFC2410C);
+  static const primaryDeep = Color(0xFF9A3412);
+  static const primaryLight = Color(0xFFFFF0E8);
+  static const secondary = Color(0xFFFB923C);
+  static const coral = Color(0xFFE85D75);
+  static const highlight = Color(0xFFEAB308);
+  static const ink = Color(0xFF18392B);
+  static const muted = Color(0xFF647067);
+  static const background = Color(0xFFF3FBF5);
   static const card = Colors.white;
-  static const accent = Color(0xFFEAB308); // rating stars
-  static const ink = Color(0xFF431D12); // body text
-  static const muted = Color(0xFF7C5A4B); // secondary text (>= 4.5:1 on background)
-  static const line = Color(0xFFF1DFD3);
-  static const success = Color(0xFF23925D);
+  static const line = Color(0xFFE2E8E3);
+  static const success = Color(0xFF15803D);
+  static const warning = Color(0xFFB45309);
   static const danger = Color(0xFFB91C1C);
-  static const partner = Color(0xFF3988A2); // portal preview only
+  static const info = Color(0xFF1D4ED8);
+
+  // Compatibility token aliases.
+  static const accent = highlight;
+  static const partner = Color(0xFF3988A2);
+  static const admin = Color(0xFF7C7FC9);
+  static const staff = Color(0xFFF59E0B);
 }
 
 class TepTheme {
@@ -38,7 +47,9 @@ class TepTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: TepColors.background,
       fontFamilyFallback: _fallback,
-      textTheme: ThemeData.light().textTheme.apply(bodyColor: TepColors.ink, displayColor: TepColors.ink),
+      textTheme: ThemeData.light()
+          .textTheme
+          .apply(bodyColor: TepColors.ink, displayColor: TepColors.ink),
       appBarTheme: const AppBarTheme(
         backgroundColor: TepColors.primary,
         foregroundColor: Colors.white,
@@ -50,7 +61,8 @@ class TepTheme {
           backgroundColor: TepColors.primary,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),

@@ -1,18 +1,25 @@
-# Design tokens — "Sunset Journey" (owner decision 2026-10-25)
+# Design tokens — TEP "Sunset Journey"
 
-Brand: **Sabai jai Travel**. Source of truth in code: `apps/mobile-flutter/lib/core/theme.dart` (`TepColors`).
+Brand: **TEP — Travel Super App**. Source of truth: `apps/mobile-flutter/lib/core/theme.dart` (`TepColors`).
 
 | Token | Hex | Use |
-|-------|-----|-----|
-| primary | `#C2410C` | App bars, primary buttons, active icons. White text on it = 5.2:1 |
-| primaryDeep | `#9A3412` | Gradient start, pressed state |
-| secondary | `#FB923C` | Highlights, selected chips, nav indicator. **Use ink text, never white (2.3:1)** |
-| background | `#FFF8F3` | Page background |
-| surface / card | `#FFFFFF` | Cards, inputs, nav bar |
-| accent | `#EAB308` | Rating stars |
-| ink (text) | `#431D12` | Body text |
-| muted *(derived)* | `#7C5A4B` | Secondary text, ≥ 4.5:1 on background |
-| line *(derived)* | `#F1DFD3` | Borders, dividers |
-| success / danger *(kept)* | `#23925D` / `#B91C1C` | Status; danger is a deeper red so it is not confused with the orange primary |
+|---|---:|---|
+| Primary | `#C2410C` | App bars, primary buttons, important actions |
+| Primary Deep | `#9A3412` | Gradients, pressed states |
+| Primary Light | `#FFF0E8` | Brand badge backgrounds and light highlights |
+| Secondary | `#FB923C` | Decorative highlights and selected surfaces |
+| Coral | `#E85D75` | Lifestyle content and recommendations |
+| Highlight | `#EAB308` | Stars and promotions; never as white-text background |
+| Text Primary | `#18392B` | Headings and primary content |
+| Text Secondary | `#647067` | Supporting text |
+| Background | `#F3FBF5` | Page canvas |
+| Surface | `#FFFFFF` | Cards, dialogs and inputs |
+| Border | `#E2E8E3` | Dividers and card borders |
+| Success | `#15803D` | Confirmed and completed states |
+| Warning | `#B45309` | Pending and caution states |
+| Error | `#B91C1C` | Cancellation and validation errors |
+| Info | `#1D4ED8` | Informational messages |
 
-Derived/kept tokens are my additions to the five-colour palette the owner gave; confirm or replace.
+## Accessibility rule
+
+Normal text must achieve at least WCAG AA `4.5:1` contrast against its background. Secondary and highlight colors are decorative unless they are paired with `ink` or another verified dark text color. White text is reserved for dark brand and system surfaces.

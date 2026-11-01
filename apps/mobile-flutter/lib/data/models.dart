@@ -1,10 +1,16 @@
 /// Wire models. Field names follow docs/api/openapi.yaml (camelCase).
 double _d(Object? v) => (v as num?)?.toDouble() ?? 0;
 int _i(Object? v) => (v as num?)?.toInt() ?? 0;
-List<String> _ls(Object? v) => (v as List?)?.map((e) => e.toString()).toList() ?? const [];
+List<String> _ls(Object? v) =>
+    (v as List?)?.map((e) => e.toString()).toList() ?? const [];
 
 class Destination {
-  const Destination({required this.id, required this.slug, required this.name, required this.subtitle, required this.gradientCss});
+  const Destination(
+      {required this.id,
+      required this.slug,
+      required this.name,
+      required this.subtitle,
+      required this.gradientCss});
   final int id;
   final String slug, name, subtitle, gradientCss;
   factory Destination.fromJson(Map<String, Object?> j) => Destination(
@@ -87,11 +93,15 @@ class Faq {
   const Faq(this.id, this.question, this.answer);
   final int id;
   final String question, answer;
-  factory Faq.fromJson(Map<String, Object?> j) => Faq(_i(j['id']), j['question'] as String? ?? '', j['answer'] as String? ?? '');
+  factory Faq.fromJson(Map<String, Object?> j) => Faq(_i(j['id']),
+      j['question'] as String? ?? '', j['answer'] as String? ?? '');
 }
 
 class AuthTokens {
-  const AuthTokens({required this.accessToken, required this.refreshToken, required this.expiresIn});
+  const AuthTokens(
+      {required this.accessToken,
+      required this.refreshToken,
+      required this.expiresIn});
   final String accessToken, refreshToken;
   final int expiresIn;
   factory AuthTokens.fromJson(Map<String, Object?> j) => AuthTokens(
@@ -108,12 +118,13 @@ class UserProfile {
     required this.firstName,
     required this.lastName,
     this.level = 'Explorer',
+    this.role = AccessRole.traveler,
     this.favoriteDestination,
     this.travelStyles = const [],
     this.avatarUrl,
   });
   final int id;
-  final String email, firstName, lastName, level;
+  final String email, firstName, lastName, level, role;
   final String? favoriteDestination, avatarUrl;
   final List<String> travelStyles;
   String get fullName => '$firstName $lastName'.trim();
@@ -123,10 +134,29 @@ class UserProfile {
         firstName: j['firstName'] as String? ?? '',
         lastName: j['lastName'] as String? ?? '',
         level: j['level'] as String? ?? 'Explorer',
+        role: AccessRole.normalize(j['role']),
         favoriteDestination: j['favoriteDestination'] as String?,
         travelStyles: _ls(j['travelStyles']),
         avatarUrl: j['avatarUrl'] as String?,
       );
+}
+
+class AccessRole {
+  const AccessRole._();
+  static const traveler = 'traveler';
+  static const partner = 'partner';
+  static const staff = 'staff';
+  static const moderator = 'moderator';
+  static const admin = 'admin';
+
+  static const supported = {traveler, partner, staff, moderator, admin};
+  static String normalize(Object? value) {
+    final role = value?.toString() ?? traveler;
+    return supported.contains(role) ? role : traveler;
+  }
+
+  static bool canPreviewPortal(String role) =>
+      role == partner || role == admin || role == moderator || role == staff;
 }
 
 class BookingSummary {
@@ -160,7 +190,8 @@ class BookingSummary {
         subtitle: j['subtitle'] as String? ?? '',
         amount: _d(j['amount']),
         method: j['method'] as String? ?? '',
-        date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+        date: DateTime.tryParse(j['date'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
         status: j['status'] as String? ?? '',
         startDate: j['startDate'] as String?,
         endDate: j['endDate'] as String?,
@@ -214,7 +245,13 @@ class BookingDetail extends BookingSummary {
 }
 
 class PaymentIntent {
-  const PaymentIntent({required this.id, required this.status, required this.method, required this.amount, this.promptPayQrUrl, this.clientSecret});
+  const PaymentIntent(
+      {required this.id,
+      required this.status,
+      required this.method,
+      required this.amount,
+      this.promptPayQrUrl,
+      this.clientSecret});
   final String id, status, method;
   final double amount;
   final String? promptPayQrUrl, clientSecret;
@@ -230,7 +267,12 @@ class PaymentIntent {
 }
 
 class WalletTx {
-  const WalletTx({required this.id, required this.direction, required this.label, required this.amount, required this.createdAt});
+  const WalletTx(
+      {required this.id,
+      required this.direction,
+      required this.label,
+      required this.amount,
+      required this.createdAt});
   final int id;
   final String direction, label;
   final double amount;
@@ -241,12 +283,16 @@ class WalletTx {
         direction: j['direction'] as String? ?? 'in',
         label: j['label'] as String? ?? '',
         amount: _d(j['amount']),
-        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
       );
 }
 
 class Wallet {
-  const Wallet({required this.balance, required this.currency, required this.transactions});
+  const Wallet(
+      {required this.balance,
+      required this.currency,
+      required this.transactions});
   final double balance;
   final String currency;
   final List<WalletTx> transactions;
@@ -266,7 +312,13 @@ class FieldError {
 
 /// RFC 7807 problem as returned by the API (docs/api/conventions.md).
 class ApiException implements Exception {
-  const ApiException({required this.status, required this.code, required this.title, this.detail, this.errors = const [], this.requestId});
+  const ApiException(
+      {required this.status,
+      required this.code,
+      required this.title,
+      this.detail,
+      this.errors = const [],
+      this.requestId});
   final int status;
   final String code, title;
   final String? detail, requestId;
@@ -284,7 +336,8 @@ class ApiException implements Exception {
     return detail ?? title;
   }
 
-  factory ApiException.fromJson(int status, Map<String, Object?> j) => ApiException(
+  factory ApiException.fromJson(int status, Map<String, Object?> j) =>
+      ApiException(
         status: status,
         code: j['code'] as String? ?? 'UNKNOWN',
         title: j['title'] as String? ?? 'Error',
@@ -292,7 +345,8 @@ class ApiException implements Exception {
         requestId: j['requestId'] as String?,
         errors: ((j['errors'] as List?) ?? const [])
             .map((e) => (e as Map).cast<String, Object?>())
-            .map((e) => FieldError(e['field'] as String? ?? '', e['message'] as String? ?? ''))
+            .map((e) => FieldError(
+                e['field'] as String? ?? '', e['message'] as String? ?? ''))
             .toList(),
       );
 

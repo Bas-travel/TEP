@@ -8,6 +8,7 @@ import 'listing_detail_screen.dart';
 import 'menu_screen.dart';
 import 'shell.dart';
 import 'widgets/common.dart';
+import 'widgets/brand.dart';
 
 class _HomeData {
   const _HomeData(this.destinations, this.featured);
@@ -17,7 +18,8 @@ class _HomeData {
 
 /// Board 1.1 — greeting header, search entry, categories, destinations, recommended listings.
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.onSearch, this.onTab, this.modeLabel = 'mock'});
+  const HomeScreen(
+      {super.key, required this.onSearch, this.onTab, this.modeLabel = 'mock'});
   final void Function(SearchIntent) onSearch;
 
   /// Switches bottom-nav tab (used by the main-menu entries).
@@ -42,27 +44,47 @@ class HomeScreen extends StatelessWidget {
               color: TepColors.primary,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
             ),
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            padding: EdgeInsets.fromLTRB(
+                16, MediaQuery.of(context).padding.top + 12, 16, 20),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 CircleAvatar(
                   backgroundColor: Colors.white24,
-                  child: Text((user?.firstName.isNotEmpty ?? false) ? user!.firstName.characters.first : '?', style: const TextStyle(color: Colors.white)),
+                  child: Text(
+                      (user?.firstName.isNotEmpty ?? false)
+                          ? user!.firstName.characters.first
+                          : '?',
+                      style: const TextStyle(color: Colors.white)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('สวัสดี, ${user?.firstName ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-                    const Text('Explore Your Journey', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('สวัสดี, ${user?.firstName ?? ''}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700)),
+                        const Text('Explore Your Journey',
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 13)),
+                      ]),
                 ),
                 IconButton(
                   key: const Key('home-menu'),
                   tooltip: 'เมนูหลัก',
                   icon: const Icon(Icons.apps_rounded, color: Colors.white),
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MenuScreen(onTab: (t) => onTab?.call(t)))),
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) =>
+                              MenuScreen(onTab: (t) => onTab?.call(t)))),
                 ),
-                Chip(label: Text(modeLabel.toUpperCase(), style: const TextStyle(fontSize: 10)), visualDensity: VisualDensity.compact),
+                Chip(
+                    label: Text(modeLabel.toUpperCase(),
+                        style: const TextStyle(fontSize: 10)),
+                    visualDensity: VisualDensity.compact),
               ]),
               const SizedBox(height: 16),
               InkWell(
@@ -70,15 +92,24 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 onTap: () => onSearch(const SearchIntent()),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14)),
                   child: const Row(children: [
                     Icon(Icons.search_rounded, color: TepColors.muted),
                     SizedBox(width: 8),
-                    Expanded(child: Text('ค้นหาที่พัก ร้านอาหาร ที่เที่ยว', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: TepColors.muted))),
+                    Expanded(
+                        child: Text('ค้นหาที่พัก ร้านอาหาร ที่เที่ยว',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: TepColors.muted))),
                   ]),
                 ),
               ),
+              const SizedBox(height: 16),
+              const TepBrandMark(compact: true, onSurface: true),
             ]),
           ),
           SizedBox(
@@ -96,14 +127,23 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => onSearch(SearchIntent(type: e.key)),
                       child: SizedBox(
                         width: 72,
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
                           Container(
                             padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: TepColors.line)),
-                            child: Icon(typeIcon(e.key), color: TepColors.primary),
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: TepColors.line)),
+                            child:
+                                Icon(typeIcon(e.key), color: TepColors.primary),
                           ),
                           const SizedBox(height: 6),
-                          Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                          Text(e.value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12)),
                         ]),
                       ),
                     ),
@@ -124,16 +164,30 @@ class HomeScreen extends StatelessWidget {
                 return InkWell(
                   key: Key('dest-${d.slug}'),
                   borderRadius: BorderRadius.circular(18),
-                  onTap: () => onSearch(SearchIntent(destinationId: d.id, destinationName: d.name)),
+                  onTap: () => onSearch(SearchIntent(
+                      destinationId: d.id, destinationName: d.name)),
                   child: Container(
                     width: 150,
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(gradient: gradientFromCss(d.gradientCss), borderRadius: BorderRadius.circular(18)),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(d.name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 2),
-                      Text(d.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    ]),
+                    decoration: BoxDecoration(
+                        gradient: gradientFromCss(d.gradientCss),
+                        borderRadius: BorderRadius.circular(18)),
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(d.name,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 2),
+                          Text(d.subtitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ]),
                   ),
                 );
               },
@@ -143,7 +197,11 @@ class HomeScreen extends StatelessWidget {
           for (final l in data.featured)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: ListingTile(l, onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ListingDetailScreen(listingId: l.id)))),
+              child: ListingTile(l,
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) =>
+                              ListingDetailScreen(listingId: l.id)))),
             ),
           const SizedBox(height: 16),
         ]),
