@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"sort"
 	"strconv"
@@ -10,7 +11,19 @@ import (
 )
 
 func (s *Server) listDestinations(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteJSON(w, 200, map[string]any{"items": seedDestinations})
+	var items []Destination
+	err := s.repo.Tx(r.Context(), func(tx Tx) (e error) { items, e = tx.Destinations(); return })
+	if s.fail(w, r, err) {
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"items": items})
+}
+
+// publicListing resolves a listing that travelers may see (published, owner not suspended).
+func (s *Server) publicListing(ctx context.Context, id int64) (*listingRow, error) {
+	var l *listingRow
+	err := s.repo.Tx(ctx, func(tx Tx) (e error) { l, e = tx.ListingByID(id, true); return })
+	return l, err
 }
 
 func (s *Server) listFaqs(w http.ResponseWriter, r *http.Request) {
@@ -56,17 +69,15 @@ func (s *Server) searchListings(w http.ResponseWriter, r *http.Request) {
 		httpx.Invalid(w, r, errs...)
 		return
 	}
+	var rows []listingRow
+	if err := s.repo.Tx(r.Context(), func(tx Tx) (e error) {
+		rows, e = tx.Listings(ListingFilter{PublicOnly: true, Q: q, Type: typ, DestinationID: destID})
+		return
+	}); s.fail(w, r, err) {
+		return
+	}
 	var all []ListingSummary
-	for _, l := range seedListings {
-		if typ != "" && l.Type != typ {
-			continue
-		}
-		if destID != 0 && l.DestinationID != destID {
-			continue
-		}
-		if q != "" && !strings.Contains(strings.ToLower(l.Name+" "+l.Location), q) {
-			continue
-		}
+	for _, l := range rows {
 		all = append(all, l.ListingSummary)
 	}
 	sort.SliceStable(all, func(i, j int) bool { return all[i].Rating > all[j].Rating })
@@ -88,24 +99,14 @@ func (s *Server) searchListings(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, 200, out)
 }
 
-func findListing(id int64) (listingRow, bool) {
-	for _, l := range seedListings {
-		if l.ID == id {
-			return l, true
-		}
-	}
-	return listingRow{}, false
-}
-
 func (s *Server) getListing(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(r, "listingId")
 	if !ok {
 		httpx.NotFound(w, r)
 		return
 	}
-	l, found := findListing(id)
-	if !found {
-		httpx.NotFound(w, r)
+	l, err := s.publicListing(r.Context(), id)
+	if s.fail(w, r, err) {
 		return
 	}
 	httpx.WriteJSON(w, 200, l.ListingDetail)

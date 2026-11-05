@@ -196,6 +196,7 @@ func (s *Server) getMe(w http.ResponseWriter, r *http.Request, uid int64) {
 		u, e := tx.UserByID(uid, false)
 		if e == nil {
 			p = u.Profile
+			p.Role = u.Role
 		}
 		return e
 	})
@@ -208,7 +209,16 @@ func (s *Server) getMe(w http.ResponseWriter, r *http.Request, uid int64) {
 // deleteMe erases the account: personal data and engagement content are removed, financial records (bookings, wallet)
 // are kept with the identity anonymised. All sessions are revoked.
 func (s *Server) deleteMe(w http.ResponseWriter, r *http.Request, uid int64) {
-	err := s.repo.Tx(r.Context(), func(tx Tx) error { return tx.DeleteUser(uid, s.now()) })
+	err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		u, e := tx.UserByID(uid, true)
+		if e != nil {
+			return e
+		}
+		if u.Role != RoleTraveler {
+			return conflict("staff, partner and admin accounts cannot be deleted by themselves; ask an administrator")
+		}
+		return tx.DeleteUser(uid, s.now())
+	})
 	if s.fail(w, r, err) {
 		return
 	}

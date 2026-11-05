@@ -111,5 +111,112 @@ func (s *Server) seedAll(tx Tx, demoHash string) error {
 			return err
 		}
 	}
+	return s.seedPortals(tx, demoHash, uid, members)
+}
+
+// seedPortals adds the back-office demo data: admin / staff / partner accounts (same password as the demo traveler),
+// an approved partner owning listings 1-4, a pending application, sample bookings, tickets and one booking check.
+func (s *Server) seedPortals(tx Tx, hash string, _ int64, members map[string]*userRec) error {
+	now := s.now()
+	mk := func(email, first, last, role string) (*userRec, error) {
+		u := &userRec{PassHash: hash, Role: role, Profile: UserProfile{Email: email, FirstName: first, LastName: last, Language: "th"}}
+		return u, tx.CreateUser(u, now)
+	}
+	if _, err := mk("admin@tep.dev", "แอดมิน", "ระบบ", RoleAdmin); err != nil {
+		return err
+	}
+	staff, err := mk("staff@tep.dev", "สมชาย", "ซัพพอร์ต", RoleStaff)
+	if err != nil {
+		return err
+	}
+	powner, err := mk("partner@tep.dev", "วิภา", "อันดามัน", RolePartner)
+	if err != nil {
+		return err
+	}
+	p := &partnerRec{UserID: powner.ID, BusinessName: "Andaman Partner Co.", ContactPhone: "076-000-000", Description: "โรงแรมและกิจกรรมฝั่งอันดามัน",
+		Status: PartnerApproved, CommissionRate: DefaultCommissionRate, CreatedAt: now.AddDate(0, -1, 0)}
+	if err := tx.CreatePartner(p); err != nil {
+		return err
+	}
+	for id := int64(1); id <= 4; id++ {
+		l, err := tx.ListingByID(id, false)
+		if err != nil {
+			return err
+		}
+		l.PartnerID = p.ID
+		if err := tx.SaveListing(l); err != nil {
+			return err
+		}
+	}
+	if err := tx.CreatePartner(&partnerRec{UserID: members["m_fah"].ID, BusinessName: "Fah Local Tours", ContactPhone: "081-000-0000",
+		Description: "ทัวร์ท้องถิ่นกระบี่", Status: PartnerPending, CommissionRate: DefaultCommissionRate, CreatedAt: now.Add(-6 * time.Hour)}); err != nil {
+		return err
+	}
+
+	book := func(uid, listing int64, status string, ago time.Duration) (*bookingRec, error) {
+		l, err := tx.ListingByID(listing, false)
+		if err != nil {
+			return nil, err
+		}
+		sub := l.PriceFrom
+		fee := round2(sub * 0.03)
+		b := &bookingRec{UserID: uid, Lines: []bookingLine{{ListingID: l.ID, Description: l.Name, Quantity: 1, UnitPrice: l.PriceFrom}},
+			BookingDetail: BookingDetail{BookingSummary: BookingSummary{Type: l.Type, Title: l.Name, Subtitle: l.Location, Amount: round2(sub + fee),
+				Date: now.Add(-ago), Status: status, Guests: 2}, Subtotal: round2(sub), ServiceFee: fee}}
+		if status != "pending_payment" {
+			b.Method = "PromptPay"
+		}
+		if err := tx.CreateBooking(b); err != nil {
+			return nil, err
+		}
+		if status != "pending_payment" {
+			if err := tx.SaveBooking(b); err != nil {
+				return nil, err
+			}
+			if err := tx.RecordPayment(b.ID, "", "promptpay", b.Amount, "succeeded", b.Date); err != nil {
+				return nil, err
+			}
+		}
+		return b, nil
+	}
+	if _, err := book(members["m_nok"].ID, 1, "confirmed", 3*time.Hour); err != nil {
+		return err
+	}
+	done, err := book(members["m_ton"].ID, 2, "completed", 30*time.Hour)
+	if err != nil {
+		return err
+	}
+	if _, err := book(members["m_nok"].ID, 3, "pending_payment", time.Hour); err != nil {
+		return err
+	}
+	if err := tx.AddBookingCheck(&bookingCheck{BookingID: done.ID, StaffID: staff.ID, Result: "verified", Note: "ตรวจสอบการชำระเงินแล้ว", CreatedAt: now.Add(-26 * time.Hour)}); err != nil {
+		return err
+	}
+
+	for _, t := range []struct {
+		subject, msg   string
+		reply, resolve bool
+		by             string
+		ago            time.Duration
+	}{
+		{"สอบถามการยกเลิกการจอง", "ต้องการยกเลิกการจองโรงแรมที่ภูเก็ต ทำอย่างไรคะ", false, false, "m_pim", 2 * time.Hour},
+		{"คูปองใช้ไม่ได้", "ใส่โค้ด WELCOME10 แล้วระบบแจ้งว่าไม่ผ่าน", true, false, "m_nok", 30 * time.Hour},
+		{"ขอใบกำกับภาษี", "ขอใบกำกับภาษีสำหรับการจองที่ผ่านมา", true, true, "m_ton", 72 * time.Hour},
+	} {
+		tk, err := tx.AddTicket(members[t.by].ID, t.subject, t.msg, now.Add(-t.ago))
+		if err != nil {
+			return err
+		}
+		if t.reply {
+			if _, err := tx.AddTicketReply(tk.ID, staff.ID, RoleStaff, "ทีมงานได้รับเรื่องแล้ว กำลังตรวจสอบให้ค่ะ", now.Add(-t.ago+time.Hour)); err != nil {
+				return err
+			}
+		}
+		if t.resolve {
+			if err := tx.SetTicketStatus(tk.ID, "resolved", now.Add(-t.ago+2*time.Hour)); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }

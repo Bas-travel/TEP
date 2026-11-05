@@ -85,10 +85,20 @@ type Review struct {
 }
 
 type SupportTicket struct {
-	ID        int64     `json:"id"`
-	Subject   string    `json:"subject"`
-	Message   string    `json:"message"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        int64         `json:"id"`
+	Subject   string        `json:"subject"`
+	Message   string        `json:"message"`
+	Status    string        `json:"status"` // open | answered | resolved
+	CreatedAt time.Time     `json:"createdAt"`
+	Replies   []TicketReply `json:"replies"`
+}
+
+type TicketReply struct {
+	ID         int64     `json:"id"`
+	AuthorRole string    `json:"authorRole"` // traveler | staff | admin
+	AuthorName string    `json:"authorName"`
+	Message    string    `json:"message"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 type SharedTrip struct {

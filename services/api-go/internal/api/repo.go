@@ -45,13 +45,14 @@ const (
 )
 
 type userRec struct {
-	ID       int64
-	Role     string
-	Status   string // active | deleted
-	PassHash string
-	Bio      string
-	Handle   string // public member id used by the community API (e.g. "m_nok", "m_12")
-	Profile  UserProfile
+	ID        int64
+	Role      string
+	Status    string // active | deleted
+	PassHash  string
+	Bio       string
+	Handle    string // public member id used by the community API (e.g. "m_nok", "m_12")
+	CreatedAt time.Time
+	Profile   UserProfile
 }
 
 type bookingLine struct {
@@ -173,6 +174,32 @@ type Tx interface {
 	AddComment(uid, postID int64, text string, now time.Time) (Comment, error)
 	Member(viewer int64, handle string) (*MemberProfile, error)
 	ToggleFollow(viewer int64, handle string) (bool, error)
+
+	// ---- catalog (managed by partners; read by travelers) ----
+	Destinations() ([]Destination, error)
+	Listings(f ListingFilter) ([]listingRow, error)             // ordered by id
+	ListingByID(id int64, publicOnly bool) (*listingRow, error) // ErrNotFound when hidden
+	SaveListing(l *listingRow) error                            // ID 0 inserts (sets ID); otherwise upsert with that id
+	// ---- partners ----
+	CreatePartner(p *partnerRec) error // ErrDuplicate when the user already has a partner record
+	PartnerByID(id int64, lock bool) (*partnerRec, error)
+	PartnerByUser(uid int64, lock bool) (*partnerRec, error)
+	SavePartner(p *partnerRec) error
+	Partners(f PartnerFilter) ([]*partnerRec, int, error) // newest first, total ignores paging
+	// ---- admin / staff reads and writes ----
+	UserAny(id int64, lock bool) (*userRec, error) // any status, including suspended
+	AdminUsers(f UserFilter) ([]*userRec, int, error)
+	AdminBookings(f BookingFilter) ([]*bookingRec, int, error) // newest first, Lines loaded
+	AddBookingCheck(c *bookingCheck) error
+	BookingChecks(bookingID int64) ([]bookingCheck, error) // newest first
+	CheckStats(staffID int64, from, to time.Time) (verified, flagged int, err error)
+	AdminTickets(f TicketFilter) ([]*ticketRec, int, error) // newest first, replies not loaded
+	TicketByID(id int64, lock bool) (*ticketRec, error)     // replies loaded
+	AddTicketReply(ticketID, authorID int64, authorRole, message string, now time.Time) (TicketReply, error)
+	SetTicketStatus(id int64, status string, now time.Time) error
+	AddAudit(a auditRec) error
+	Audits(f AuditFilter) ([]auditRec, int, error)
+	Stats(since time.Time) (PlatformStats, error)
 }
 
 func bookingNumber(id int64, t time.Time) string {

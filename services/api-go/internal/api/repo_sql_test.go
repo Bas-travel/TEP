@@ -9,7 +9,7 @@ import (
 )
 
 // catalogTables hold seeded reference data and survive a reset; every other table is user-level and is emptied.
-var catalogTables = map[string]bool{"destinations": true, "listings": true, "faqs": true, "schema_migrations": true}
+var catalogTables = map[string]bool{"destinations": true, "faqs": true, "schema_migrations": true}
 
 // sqlTestRepo opens TEP_TEST_MYSQL_DSN, migrates (with seed), and empties all user-level tables so every test starts from
 // the same state and ids are deterministic (demo user = 1, posts 1..5, ...).
@@ -52,5 +52,18 @@ func sqlTestRepo(t *testing.T, dsn string) Repo {
 	_, _ = conn.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`)
 	r := NewSQLRepo(d)
 	t.Cleanup(func() { _ = r.Close() })
+	// Listings are editable by partners/admin, so each test starts from the fixtures again.
+	if err := r.Tx(ctx, func(tx Tx) error {
+		for i := range seedListings {
+			l := seedListings[i]
+			l.Status = "published"
+			if err := tx.SaveListing(&l); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("reseed listings: %v", err)
+	}
 	return r
 }

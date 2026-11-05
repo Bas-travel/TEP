@@ -91,7 +91,7 @@ func jsonOrNil(v any, empty bool) (any, error) {
 
 const userSelect = `SELECT u.id, u.email, u.phone, u.password_hash, u.role, u.status, u.handle,
   p.first_name, p.last_name, p.gender, DATE_FORMAT(p.date_of_birth,'%Y-%m-%d'), p.nationality, p.language, p.budget_level,
-  p.travel_styles, p.favorite_destination, p.travel_with, p.level, p.bio
+  p.travel_styles, p.favorite_destination, p.travel_with, p.level, p.bio, u.created_at
   FROM users u JOIN user_profiles p ON p.user_id = u.id`
 
 func scanUser(row interface{ Scan(...any) error }) (*userRec, error) {
@@ -99,7 +99,7 @@ func scanUser(row interface{ Scan(...any) error }) (*userRec, error) {
 	var phone, gender, dob, nat, lang, budget, fav, with, bio sql.NullString
 	var styles []byte
 	if err := row.Scan(&u.ID, &u.Profile.Email, &phone, &u.PassHash, &u.Role, &u.Status, &u.Handle,
-		&u.Profile.FirstName, &u.Profile.LastName, &gender, &dob, &nat, &lang, &budget, &styles, &fav, &with, &u.Profile.Level, &bio); err != nil {
+		&u.Profile.FirstName, &u.Profile.LastName, &gender, &dob, &nat, &lang, &budget, &styles, &fav, &with, &u.Profile.Level, &bio, &u.CreatedAt); err != nil {
 		return nil, notFound(err)
 	}
 	p := &u.Profile
@@ -176,7 +176,7 @@ func (t *sqlTx) UserByEmail(email string) (*userRec, error) {
 }
 
 func (t *sqlTx) SaveUser(u *userRec) error {
-	if _, err := t.exec(`UPDATE users SET password_hash=?, phone=? WHERE id=?`, u.PassHash, nullStr(u.Profile.Phone), u.ID); err != nil {
+	if _, err := t.exec(`UPDATE users SET password_hash=?, phone=?, role=?, status=? WHERE id=?`, u.PassHash, nullStr(u.Profile.Phone), u.Role, u.Status, u.ID); err != nil {
 		if isDup(err) {
 			return ErrDuplicate
 		}
@@ -383,7 +383,40 @@ func (t *sqlTx) CreateBooking(b *bookingRec) error {
 }
 
 func (t *sqlTx) GetBooking(id int64, lock bool) (*bookingRec, error) {
-	return scanBooking(t.row(bookingSelect+` WHERE id=?`+lockClause(lock), id))
+	b, err := scanBooking(t.row(bookingSelect+` WHERE id=?`+lockClause(lock), id))
+	if err != nil {
+		return nil, err
+	}
+	return b, t.loadLines([]*bookingRec{b})
+}
+
+// loadLines fills Lines for the given bookings with a single query.
+func (t *sqlTx) loadLines(bs []*bookingRec) error {
+	if len(bs) == 0 {
+		return nil
+	}
+	idx := map[int64]*bookingRec{}
+	args := make([]any, 0, len(bs))
+	ph := make([]string, 0, len(bs))
+	for _, b := range bs {
+		idx[b.ID] = b
+		args = append(args, b.ID)
+		ph = append(ph, "?")
+	}
+	rows, err := t.query(`SELECT booking_id, COALESCE(listing_id,0), description, quantity, unit_price FROM booking_line_items WHERE booking_id IN (`+strings.Join(ph, ",")+`) ORDER BY id`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var bid int64
+		var l bookingLine
+		if err := rows.Scan(&bid, &l.ListingID, &l.Description, &l.Quantity, &l.UnitPrice); err != nil {
+			return err
+		}
+		idx[bid].Lines = append(idx[bid].Lines, l)
+	}
+	return rows.Err()
 }
 
 func (t *sqlTx) SaveBooking(b *bookingRec) error {
@@ -395,8 +428,9 @@ func (t *sqlTx) SaveBooking(b *bookingRec) error {
 		refund = *b.RefundAmount
 	}
 	res, err := t.exec(`UPDATE bookings SET status=?, payment_method_label=?, cancel_reason=?, refund_amount=?,
-		cancelled_at = IF(?='cancelled', COALESCE(cancelled_at, UTC_TIMESTAMP()), NULL) WHERE id=?`,
-		b.Status, nullStr(b.Method), reason, refund, b.Status, b.ID)
+		cancelled_at = IF(?='cancelled', COALESCE(cancelled_at, UTC_TIMESTAMP()), NULL),
+		completed_at = IF(?='completed', COALESCE(completed_at, UTC_TIMESTAMP()), NULL) WHERE id=?`,
+		b.Status, nullStr(b.Method), reason, refund, b.Status, b.Status, b.ID)
 	if err != nil {
 		return err
 	}
@@ -487,7 +521,7 @@ func (t *sqlTx) PendingIntents(uid int64) ([]*intentRec, error) {
 func (t *sqlTx) RecordPayment(bookingID int64, intentID, method string, amount float64, status string, now time.Time) error {
 	_, err := t.exec(`INSERT INTO payments (booking_id, intent_id, method, status, amount, confirmed_at) VALUES (?,?,?,?,?,?)
 		ON DUPLICATE KEY UPDATE intent_id=VALUES(intent_id), method=VALUES(method), status=VALUES(status), amount=VALUES(amount), confirmed_at=VALUES(confirmed_at)`,
-		bookingID, intentID, method, status, amount, utc(now))
+		bookingID, nullStr(intentID), method, status, amount, utc(now))
 	return err
 }
 

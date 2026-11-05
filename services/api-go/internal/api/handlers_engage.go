@@ -258,8 +258,11 @@ func (s *Server) getTrip(w http.ResponseWriter, r *http.Request, uid int64) {
 
 // ---- reviews ----
 
-func reviewOut(rv reviewRec) Review {
-	l, _ := findListing(rv.ListingID)
+func reviewOut(tx Tx, rv reviewRec) Review {
+	l, _ := tx.ListingByID(rv.ListingID, false) // an archived listing keeps its name on old reviews
+	if l == nil {
+		l = &listingRow{}
+	}
 	return Review{ID: rv.ID, ItemName: l.Name, ItemType: l.Type, Rating: rv.Rating, Comment: rv.Comment, CreatedAt: rv.CreatedAt}
 }
 
@@ -268,7 +271,7 @@ func (s *Server) listReviews(w http.ResponseWriter, r *http.Request, uid int64) 
 	err := s.repo.Tx(r.Context(), func(tx Tx) error {
 		rs, e := tx.Reviews(uid)
 		for _, rv := range rs {
-			items = append(items, reviewOut(rv))
+			items = append(items, reviewOut(tx, rv))
 		}
 		return e
 	})
@@ -297,7 +300,7 @@ func (s *Server) createReview(w http.ResponseWriter, r *http.Request, uid int64)
 	} else if len([]rune(*in.Comment)) > 2000 {
 		errs = append(errs, fe("comment", "max 2000 characters"))
 	}
-	if _, ok := findListing(in.ListingID); !ok {
+	if _, e := s.publicListing(r.Context(), in.ListingID); e != nil {
 		errs = append(errs, fe("listingId", "unknown listing"))
 	}
 	if len(errs) > 0 {
@@ -307,7 +310,7 @@ func (s *Server) createReview(w http.ResponseWriter, r *http.Request, uid int64)
 	var out Review
 	err := s.repo.Tx(r.Context(), func(tx Tx) error {
 		rv, e := tx.AddReview(uid, in.ListingID, in.Rating, *in.Comment, s.now())
-		out = reviewOut(rv)
+		out = reviewOut(tx, rv)
 		return e
 	})
 	if s.fail(w, r, err) {

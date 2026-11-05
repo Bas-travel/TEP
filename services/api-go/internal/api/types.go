@@ -31,6 +31,8 @@ type ListingDetail struct {
 type listingRow struct {
 	ListingDetail
 	DestinationID int64
+	PartnerID     int64  // 0 = platform-owned
+	Status        string // draft | published | archived ("" is read as published)
 }
 
 type Faq struct {
@@ -64,6 +66,7 @@ type RegisterRequest struct {
 type UserProfile struct {
 	ID                  int64    `json:"id"`
 	Level               string   `json:"level"`
+	Role                string   `json:"role"`
 	Email               string   `json:"email"`
 	Phone               string   `json:"phone,omitempty"`
 	FirstName           string   `json:"firstName"`
