@@ -82,3 +82,15 @@ Requirement IDs trace to [../ux/screen-inventory.md](../ux/screen-inventory.md).
 Storage notes: timestamps are UTC `DATETIME` (the DSN forces `parseTime=true&loc=UTC`, session `time_zone='+00:00'`);
 refresh tokens are stored as SHA-256 in `user_sessions` (`revoked_at` marks a spent token → reuse revokes every session);
 `community_posts.like_count` is maintained on toggle; account deletion anonymises the user and keeps bookings / payments / wallet rows.
+
+## Migration 0005 — portals (partner / admin / staff)
+
+| Change | Description | REQ |
+|--------|-------------|-----|
+| partners | One per applicant (`user_id` unique): business_name, contact_phone, description, status pending/approved/rejected/suspended, commission_rate 0–50 (default 12), decision_note, decided_by/at | REQ-PTN-01 |
+| listings.partner_id, created_at | Owner (NULL = platform); public visibility = published AND (no partner OR partner approved) | REQ-PTN-02 |
+| bookings.completed_at | Set when a partner completes a booking | REQ-PTN-03 |
+| support_tickets.status, first_replied_at, resolved_at | open / answered / resolved lifecycle and response-time metric | REQ-STF-02 |
+| support_ticket_replies | Conversation (author_role traveler/staff/admin) | REQ-STF-02 |
+| booking_checks | Staff verification (verified / flagged + note) | REQ-STF-01 |
+| ix_audit_action, ix_audit_created | Audit log filtering | REQ-ADM-03 |

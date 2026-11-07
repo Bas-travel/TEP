@@ -30,6 +30,10 @@ tags:
   - name: Media
   - name: Devices
   - name: Webhooks
+  - name: Partners
+  - name: Partner portal
+  - name: Admin portal
+  - name: Staff portal
   - name: Health
 
 security:
@@ -1422,6 +1426,720 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Acknowledged (also returned for a replayed event)
+  /partners/apply:
+    post:
+      tags: [Partners]
+      summary: Apply to become a partner (traveler)
+      operationId: applyPartner
+      description: Creates a pending application. A rejected applicant may apply again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartnerApplication' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Partner' }
+
+  /partners/me:
+    get:
+      tags: [Partners]
+      summary: My partner application / status
+      operationId: getMyPartner
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Partner' }
+
+  /support/tickets/{ticketId}/replies:
+    post:
+      tags: [Support]
+      summary: Reply to my own ticket
+      operationId: replyMyTicket
+      description: A traveler reply reopens the ticket (status open).
+      parameters:
+        - { name: ticketId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 2000 } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportTicket' }
+
+  /partner/v1/dashboard:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: Partner dashboard counters
+      operationId: partnerDashboard
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
+
+  /partner/v1/profile:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: Business profile
+      operationId: partnerGetProfile
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Partner' }
+    patch:
+      tags: [Partner portal]
+      summary: Update business profile
+      operationId: partnerPatchProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartnerApplication' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Partner' }
+
+  /partner/v1/listings:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: My listings
+      operationId: partnerListListings
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/ListingAdmin' } } } }
+    post:
+      tags: [Partner portal]
+      summary: Create listing (draft)
+      operationId: partnerCreateListing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingInput' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingAdmin' }
+
+  /partner/v1/listings/{listingId}:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: Get my listing
+      operationId: partnerGetListing
+      parameters:
+        - { name: listingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingAdmin' }
+    patch:
+      tags: [Partner portal]
+      summary: Update / publish / archive my listing
+      operationId: partnerPatchListing
+      parameters:
+        - { name: listingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingInput' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingAdmin' }
+
+  /partner/v1/bookings:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: Bookings containing my listings
+      operationId: partnerListBookings
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/PartnerBooking' } } } } ] }
+
+  /partner/v1/bookings/{bookingId}:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: Booking detail
+      operationId: partnerGetBooking
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartnerBooking' }
+
+  /partner/v1/bookings/{bookingId}/complete:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Partner portal]
+      summary: Complete a confirmed booking
+      operationId: partnerCompleteBooking
+      description: Board action "ยืนยัน" maps to complete. Only when every line is the partner own.
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartnerBooking' }
+
+  /partner/v1/bookings/{bookingId}/reject:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Partner portal]
+      summary: Reject a pending/confirmed booking (refund)
+      operationId: partnerRejectBooking
+      description: Board action "ปฏิเสธ" maps to reject; paid bookings are refunded to the traveler wallet.
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [reason], properties: { reason: { type: string, maxLength: 450 } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartnerBooking' }
+
+  /partner/v1/earnings:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Partner portal]
+      summary: Gross / commission / net per month
+      operationId: partnerEarnings
+      description: Confirmed + completed bookings. Payout runs are out of MVP scope.
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Earnings' }
+
+  /admin/v1/dashboard:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Platform dashboard
+      operationId: adminDashboard
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
+
+  /admin/v1/users:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Users
+      operationId: adminListUsers
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: role, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/AdminUser' } } } } ] }
+
+  /admin/v1/users/{userId}:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: User
+      operationId: adminGetUser
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+    patch:
+      tags: [Admin portal]
+      summary: Change role (not partner) or suspend / reactivate
+      operationId: adminPatchUser
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { role: { type: string, enum: [traveler, staff, moderator, admin] }, status: { type: string, enum: [active, suspended] } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+
+  /admin/v1/partners:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Partners and applications
+      operationId: adminListPartners
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Partner' } } } } ] }
+
+  /admin/v1/partners/{partnerId}:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Partner
+      operationId: adminGetPartner
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Partner' }
+    patch:
+      tags: [Admin portal]
+      summary: Approve / reject / suspend, set commission
+      operationId: adminPatchPartner
+      description: Transitions pending to approved or rejected, approved to suspended, suspended or rejected to approved. A note is required to reject or suspend.
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { status: { type: string, enum: [approved, rejected, suspended] }, commissionRate: { type: number, minimum: 0, maximum: 50 }, decisionNote: { type: string, maxLength: 500 } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Partner' }
+
+  /admin/v1/listings:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: All listings (moderation)
+      operationId: adminListListings
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: partnerId, in: query, schema: { type: integer } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/ListingAdmin' } } } }
+
+  /admin/v1/listings/{listingId}:
+    servers:
+      - url: http://localhost:8080
+    patch:
+      tags: [Admin portal]
+      summary: Publish / archive a listing
+      operationId: adminPatchListing
+      parameters:
+        - { name: listingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [draft, published, archived] } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingAdmin' }
+
+  /admin/v1/audit-logs:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Audit log
+      operationId: adminAuditLogs
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: actorId, in: query, schema: { type: integer } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/AuditLog' } } } } ] }
+
+  /admin/v1/system:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: System status
+      operationId: adminSystem
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
+
+  /staff/v1/dashboard:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Staff portal]
+      summary: Staff dashboard counters
+      operationId: staffDashboard
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
+
+  /staff/v1/bookings:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Staff portal]
+      summary: Bookings
+      operationId: staffListBookings
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: checked, in: query, schema: { type: boolean } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/StaffBooking' } } } } ] }
+
+  /staff/v1/bookings/{bookingId}:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Staff portal]
+      summary: Booking with checks
+      operationId: staffGetBooking
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffBooking' }
+
+  /staff/v1/bookings/{bookingId}/check:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Staff portal]
+      summary: Verify or flag a paid booking
+      operationId: staffCheckBooking
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [result], properties: { result: { type: string, enum: [verified, flagged] }, note: { type: string, maxLength: 500, description: required when flagged } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffBooking' }
+
+  /staff/v1/tickets:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Staff portal]
+      summary: Support tickets
+      operationId: staffListTickets
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/StaffTicket' } } } } ] }
+
+  /staff/v1/tickets/{ticketId}:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Staff portal]
+      summary: Ticket with replies
+      operationId: staffGetTicket
+      parameters:
+        - { name: ticketId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffTicket' }
+    patch:
+      tags: [Staff portal]
+      summary: Resolve or reopen
+      operationId: staffPatchTicket
+      parameters:
+        - { name: ticketId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [open, resolved] } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffTicket' }
+
+  /staff/v1/tickets/{ticketId}/replies:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Staff portal]
+      summary: Reply to a ticket (status becomes answered)
+      operationId: staffReplyTicket
+      parameters:
+        - { name: ticketId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 2000 } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffTicket' }
+
+  /staff/v1/reports/daily:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Staff portal]
+      summary: Daily report (Asia/Bangkok day)
+      operationId: staffDailyReport
+      parameters:
+        - { name: date, in: query, schema: { type: string, format: date } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
 
 components:
   securitySchemes:
@@ -1484,6 +2202,12 @@ components:
             $ref: '#/components/schemas/Problem'
     ValidationFailed:
       description: Validation error; see errors[] (code VALIDATION_FAILED)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: State conflict (code CONFLICT)
       content:
         application/problem+json:
           schema:
@@ -1555,6 +2279,7 @@ components:
       properties:
         id: { type: integer, format: int64 }
         level: { type: string }
+        role: { type: string, enum: [traveler, partner, staff, moderator, admin] }
         email: { type: string, format: email }
         phone: { type: string }
         firstName: { type: string }
@@ -1825,7 +2550,18 @@ components:
         id: { type: integer, format: int64 }
         subject: { type: string }
         message: { type: string }
+        status: { type: string, enum: [open, answered, resolved] }
         createdAt: { type: string, format: date-time }
+        replies:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer, format: int64 }
+              authorRole: { type: string, enum: [traveler, staff, admin] }
+              authorName: { type: string }
+              message: { type: string }
+              createdAt: { type: string, format: date-time }
 
     Post:
       type: object
@@ -1918,3 +2654,137 @@ components:
         bio: { type: string }
         followerCount: { type: integer }
         following: { type: boolean }
+
+    Page:
+      type: object
+      properties:
+        total: { type: integer }
+        offset: { type: integer }
+        limit: { type: integer }
+    PartnerApplication:
+      type: object
+      required: [businessName]
+      properties:
+        businessName: { type: string, maxLength: 120 }
+        contactPhone: { type: string, maxLength: 30 }
+        description: { type: string, maxLength: 1000 }
+    Partner:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        businessName: { type: string }
+        contactPhone: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [pending, approved, rejected, suspended] }
+        commissionRate: { type: number, description: Percent kept by the platform (0..50, default 12) }
+        decisionNote: { type: string }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: string, format: date-time }
+        ownerName: { type: string }
+        ownerEmail: { type: string }
+        listingCount: { type: integer }
+    ListingInput:
+      type: object
+      properties:
+        name: { type: string, maxLength: 190 }
+        type: { type: string, enum: [hotel, restaurant, attraction] }
+        location: { type: string, maxLength: 190 }
+        destinationId: { type: integer, format: int64 }
+        priceFrom: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 1000000 }
+        description: { type: string, maxLength: 2000 }
+        amenities: { type: array, maxItems: 20, items: { type: string, maxLength: 60 } }
+        mapQuery: { type: string }
+        imageUrl: { type: string, format: uri, maxLength: 500 }
+        status: { type: string, enum: [draft, published, archived] }
+    ListingAdmin:
+      allOf:
+        - $ref: '#/components/schemas/ListingDetail'
+        - type: object
+          properties:
+            destinationId: { type: integer, format: int64 }
+            partnerId: { type: integer, format: int64 }
+            status: { type: string, enum: [draft, published, archived] }
+    PartnerBooking:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        bookingNumber: { type: string }
+        type: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [pending_payment, confirmed, completed, cancelled] }
+        date: { type: string, format: date-time }
+        startDate: { type: string }
+        endDate: { type: string }
+        guests: { type: integer }
+        travelerName: { type: string }
+        gross: { type: number }
+        commission: { type: number }
+        net: { type: number }
+        canAct: { type: boolean, description: Every line is the partner own and the booking is open }
+        cancelReason: { type: string }
+    Earnings:
+      type: object
+      properties:
+        commissionRate: { type: number }
+        gross: { type: number }
+        commission: { type: number }
+        net: { type: number }
+        months:
+          type: array
+          items:
+            type: object
+            properties:
+              month: { type: string, example: '2026-11' }
+              bookings: { type: integer }
+              gross: { type: number }
+              commission: { type: number }
+              net: { type: number }
+    AdminUser:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        handle: { type: string }
+        email: { type: string }
+        name: { type: string }
+        phone: { type: string }
+        role: { type: string, enum: [traveler, partner, staff, moderator, admin] }
+        status: { type: string, enum: [active, suspended, deleted] }
+        createdAt: { type: string, format: date-time }
+    StaffBooking:
+      allOf:
+        - $ref: '#/components/schemas/BookingDetail'
+        - type: object
+          properties:
+            travelerName: { type: string }
+            travelerEmail: { type: string }
+            verification: { type: string, enum: [none, verified, flagged] }
+            checks:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  staffName: { type: string }
+                  result: { type: string, enum: [verified, flagged] }
+                  note: { type: string }
+                  createdAt: { type: string, format: date-time }
+    StaffTicket:
+      allOf:
+        - $ref: '#/components/schemas/SupportTicket'
+        - type: object
+          properties:
+            travelerName: { type: string }
+            travelerEmail: { type: string }
+            replyCount: { type: integer }
+    AuditLog:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        actorId: { type: integer, format: int64 }
+        actorName: { type: string }
+        action: { type: string, example: admin.partner.update }
+        entity: { type: string }
+        entityId: { type: string }
+        meta: { type: object }
+        createdAt: { type: string, format: date-time }

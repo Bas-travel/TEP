@@ -11,9 +11,13 @@
 
 | Role | Capabilities |
 |------|----------------|
-| `traveler` | Own profile, bookings, wallet, UGC on own posts |
-| `moderator` | Hide/delete reported content, view reports |
-| `admin` | Full operational APIs (separate admin router prefix `/admin/v1`) |
+| `traveler` | Own profile, bookings, wallet, UGC on own posts; apply to become a partner; ticket replies |
+| `partner` | `/partner/v1` — only own listings and bookings containing own listings; requires an **approved** `partners` row |
+| `staff` | `/staff/v1` — verify bookings, answer tickets, daily report (admin may also use it) |
+| `moderator` | Reserved (hide/delete reported content); no portal in MVP |
+| `admin` | `/admin/v1` — users, partners, listing moderation, audit log, system status |
+
+Enforcement: the role is read from the **database on every request** (never trusted from the JWT claim), so a role change or suspension takes effect immediately (suspension also revokes refresh tokens). Wrong role → 403 `AUTH_FORBIDDEN`; another partner's resources → 404. Admins cannot change their own role/status; partner accounts are changed only through `/admin/v1/partners`. Every portal mutation writes an `audit_logs` row (`partner.*`, `admin.*`, `staff.*`).
 
 **Rule:** Every mutating handler validates resource ownership or role on the **server**. Client UI hiding is not security.
 

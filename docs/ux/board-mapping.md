@@ -5,7 +5,7 @@ Visual tokens sampled from the board: header navy `#002765`, bar `#082D66`, page
 
 ## Main menu (12) and roles
 Home · Search · My Bookings · My Trips · Tickets & Pass · Wallet · Coupons · Notifications · Messages · Profile · Settings · Support.
-Roles: User (traveler) · Partner · Admin · Staff. **Sprint 1–2 implements User only.**
+Roles: User (traveler) · Partner · Admin · Staff. **Phase 3 adds Partner, Admin and Staff portals (role-aware shell after login).**
 
 ## Traveler screens
 | Board | Screen | API | MVP |
@@ -41,7 +41,7 @@ Roles: User (traveler) · Partner · Admin · Staff. **Sprint 1–2 implements U
 | 1.29 | Nearby map | maps deep link | Deferred |
 | 1.30 | Weather | external | Deferred |
 
-Portals (Partner 2.1–2.4, Admin 3.1–3.4, Staff 4.1–4.4): deferred; no API/ERD (see `requirements/mvp-scope.md`).
+Portals (Partner 2.1–2.4, Admin 3.1–3.4, Staff 4.1–4.4): implemented — one shell per role with its own menu pages (table in `requirements/mvp-scope.md`). Board buttons: partner "ยืนยัน/ปฏิเสธ" = complete / reject.
 
 ## Sprint 1 UI delivered (updated 2026-10-25)
 All main-menu entries are reachable from Home → menu button (`MenuScreen`): trips, tickets, coupons, notifications, messages (stub), settings, support/FAQ/contact, AI planner, community, city guide, reviews, portals preview. Map and weather are placeholders by design.

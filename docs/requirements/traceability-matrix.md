@@ -24,6 +24,13 @@
 | REQ-REV-02 | Write review | S23 | `POST /reviews` | reviews | UF-08 |
 | REQ-CPN-01 | Coupons | S24 | `/coupons` | coupons | — |
 | REQ-SUP-01 | FAQ + tickets | S25–S26 | support | support_tickets | UF-07 |
+| REQ-PTN-01 | Partner application and approval | 2.1, 3.3 | partners | partners | — |
+| REQ-PTN-02 | Partner listings management | 2.2 | partner-portal | listings | — |
+| REQ-PTN-03 | Partner bookings, earnings | 2.3–2.4 | partner-portal | bookings, booking_line_items | — |
+| REQ-ADM-01 | Admin dashboard, users | 3.1–3.2 | admin-portal | users | — |
+| REQ-ADM-03 | Audit log, system status | 3.4 | admin-portal | audit_logs | — |
+| REQ-STF-01 | Booking verification | 4.1–4.2 | staff-portal | booking_checks | — |
+| REQ-STF-02 | Ticket replies, daily report | 4.3–4.4 | staff-portal | support_ticket_replies | — |
 | REQ-PRF-02 | Settings / theme | S30 | `/me/settings` | user prefs JSON | Widget |
 
 Classification today: requirements **documented**; implementation **NOT IMPLEMENTED** except prototype UI mock.
