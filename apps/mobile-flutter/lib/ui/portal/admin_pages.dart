@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app_scope.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../data/api_client.dart';
 import '../widgets/common.dart';
 import 'portal_kit.dart';
 
@@ -147,15 +148,15 @@ class _UserSheetState extends State<_UserSheet> {
 class AdminPartnersPage extends StatelessWidget {
   const AdminPartnersPage({super.key});
   @override
-  Widget build(BuildContext context) => DefaultTabController(
+  Widget build(BuildContext context) => const DefaultTabController(
         length: 2,
         child: Column(children: [
-          const TabBar(
+          TabBar(
             labelColor: TepColors.primary,
             indicatorColor: TepColors.primary,
             tabs: [Tab(key: Key('tab-partners'), text: 'พาร์ทเนอร์'), Tab(key: Key('tab-listings'), text: 'สินค้า/บริการ')],
           ),
-          const Expanded(child: TabBarView(children: [_PartnerList(), _AdminListings()])),
+          Expanded(child: TabBarView(children: [_PartnerList(), _AdminListings()])),
         ]),
       );
 }

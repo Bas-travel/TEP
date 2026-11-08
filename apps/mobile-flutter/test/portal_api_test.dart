@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tep_mobile/data/api_client.dart';
 import 'package:tep_mobile/data/mock_api_client.dart';
+import 'package:tep_mobile/data/models.dart';
 
 Future<MockApiClient> as_(String email) async {
   final api = MockApiClient(latency: Duration.zero, settleAfter: Duration.zero);

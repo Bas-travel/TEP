@@ -132,7 +132,7 @@ class _ContactTabState extends State<_ContactTab> {
                           key: Key('ticket-reply-${t.id}'),
                           onPressed: () async {
                             final msg = await askText(context, title: 'ตอบกลับทีมงาน', label: 'ข้อความ', maxLength: 2000);
-                            if (msg == null || !mounted) return;
+                            if (msg == null || !context.mounted) return;
                             final ok = await act(context, () => api.portal('POST', '/v1/support/tickets/${t.id}/replies', body: {'message': msg}), ok: 'ส่งข้อความแล้ว');
                             if (ok && mounted) setState(() => _version++);
                           },
