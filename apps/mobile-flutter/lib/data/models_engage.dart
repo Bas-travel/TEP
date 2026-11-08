@@ -175,16 +175,41 @@ class Review {
       );
 }
 
+class TicketReply {
+  const TicketReply({required this.id, required this.authorRole, required this.authorName, required this.message, required this.createdAt});
+  final int id;
+  final String authorRole, authorName, message; // authorRole: traveler | staff | admin
+  final DateTime createdAt;
+  factory TicketReply.fromJson(Map<String, Object?> j) => TicketReply(
+        id: _i(j['id']),
+        authorRole: j['authorRole'] as String? ?? 'staff',
+        authorName: j['authorName'] as String? ?? '',
+        message: j['message'] as String? ?? '',
+        createdAt: _t(j['createdAt']),
+      );
+}
+
 class SupportTicket {
-  const SupportTicket({required this.id, required this.subject, required this.message, required this.createdAt});
+  const SupportTicket({
+    required this.id,
+    required this.subject,
+    required this.message,
+    required this.createdAt,
+    this.status = 'open',
+    this.replies = const [],
+  });
   final int id;
   final String subject, message;
+  final String status; // open | answered | resolved
   final DateTime createdAt;
+  final List<TicketReply> replies;
   factory SupportTicket.fromJson(Map<String, Object?> j) => SupportTicket(
         id: _i(j['id']),
         subject: j['subject'] as String? ?? '',
         message: j['message'] as String? ?? '',
+        status: j['status'] as String? ?? 'open',
         createdAt: _t(j['createdAt']),
+        replies: ((j['replies'] as List?) ?? const []).map((e) => TicketReply.fromJson((e as Map).cast<String, Object?>())).toList(),
       );
 }
 

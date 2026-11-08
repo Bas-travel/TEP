@@ -6,6 +6,7 @@ import 'data/api_client.dart';
 import 'data/http_api_client.dart';
 import 'data/mock_api_client.dart';
 import 'ui/login_screen.dart';
+import 'ui/portal/portal_shell.dart';
 import 'ui/shell.dart';
 
 /// `flutter run --dart-define=API_MODE=http --dart-define=API_BASE_URL=http://10.0.2.2:8080`
@@ -45,7 +46,15 @@ class _TepAppState extends State<TepApp> {
         theme: TepTheme.light(),
         home: ListenableBuilder(
           listenable: _session,
-          builder: (context, _) => _session.signedIn ? AppShell(modeLabel: widget.modeLabel) : LoginScreen(modeLabel: widget.modeLabel),
+          builder: (context, _) {
+            final user = _session.user;
+            if (user == null) return LoginScreen(modeLabel: widget.modeLabel);
+            // Back-office roles get their own shell; everyone else (traveler, moderator) uses the traveler app.
+            if (const {'partner', 'admin', 'staff'}.contains(user.role)) {
+              return PortalShell(key: ValueKey('portal-${user.role}'), role: user.role, modeLabel: widget.modeLabel);
+            }
+            return AppShell(modeLabel: widget.modeLabel);
+          },
         ),
       ),
     );

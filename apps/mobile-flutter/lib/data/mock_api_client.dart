@@ -2,6 +2,7 @@ import '../core/format.dart';
 import 'api_client.dart';
 import 'mock_engage.dart';
 import 'mock_fixtures.dart';
+import 'mock_portal.dart';
 import 'models.dart';
 
 /// In-memory implementation of the API contract so the app runs with no backend (API_MODE=mock).
@@ -22,6 +23,25 @@ class MockApiClient with MockEngage implements ApiClient {
   bool get mockSignedIn => _signedIn;
   @override
   DateTime mockNow() => _now();
+  @override
+  MockPortal get mockPortal => _portal;
+  @override
+  UserProfile get mockUser => _user;
+
+  late final MockPortal _portal = MockPortal(_now);
+
+  /// Back-office demo accounts (same password as the demo traveler) — mirror services/api-go seeds.
+  static const portalAccounts = <String, UserProfile>{
+    'admin@tep.dev': UserProfile(id: 6, email: 'admin@tep.dev', firstName: 'แอดมิน', lastName: 'ระบบ', role: 'admin'),
+    'staff@tep.dev': UserProfile(id: 7, email: 'staff@tep.dev', firstName: 'สมชาย', lastName: 'ซัพพอร์ต', role: 'staff'),
+    'partner@tep.dev': UserProfile(id: 8, email: 'partner@tep.dev', firstName: 'วิภา', lastName: 'อันดามัน', role: 'partner'),
+  };
+
+  @override
+  Future<Json> portal(String method, String path, {Object? body, Map<String, String?> query = const {}}) => _t(() {
+        _requireAuth();
+        return _portal.call(method, path, user: _user, query: query, body: body);
+      });
 
   static const demoEmail = 'demo@tep.dev';
   static const demoPassword = 'Passw0rd!';
@@ -29,6 +49,15 @@ class MockApiClient with MockEngage implements ApiClient {
 
   bool _signedIn = false;
   String _password = demoPassword;
+  static const _demoUser = UserProfile(
+    id: 1,
+    email: demoEmail,
+    firstName: 'สวัสดี',
+    lastName: 'อนันต์',
+    level: 'Explorer',
+    favoriteDestination: 'ภูเก็ต',
+    travelStyles: ['ทะเล', 'คาเฟ่'],
+  );
   UserProfile _user = const UserProfile(
     id: 1,
     email: demoEmail,
@@ -58,8 +87,15 @@ class MockApiClient with MockEngage implements ApiClient {
 
   @override
   Future<void> login(String email, String password) => _t(() {
-        if (email.trim().toLowerCase() != demoEmail || password != _password) {
+        final key = email.trim().toLowerCase();
+        final staffAcc = portalAccounts[key];
+        if ((key != demoEmail && staffAcc == null) || password != _password) {
           throw const ApiException(status: 401, code: 'AUTH_UNAUTHENTICATED', title: 'Unauthorized', detail: 'invalid email or password');
+        }
+        if (staffAcc != null) {
+          _user = staffAcc;
+        } else if (_user.role != 'traveler' || _user.id != 1) {
+          _user = _demoUser;
         }
         _signedIn = true;
       });

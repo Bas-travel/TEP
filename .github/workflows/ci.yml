@@ -37,6 +37,9 @@ jobs:
           go-version-file: services/api-go/go.mod
           cache-dependency-path: services/api-go/go.sum
       - run: go vet ./...
+      - name: OpenAPI covers every route (and vice versa)
+        working-directory: .
+        run: python3 -m pip install --quiet pyyaml && python3 scripts/openapi_parity.py
       - run: go test -race -count=1 ./...
       - name: Same test-suite on the MySQL repository (API_MODE=db)
         env:

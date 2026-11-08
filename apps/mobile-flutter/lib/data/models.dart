@@ -108,12 +108,13 @@ class UserProfile {
     required this.firstName,
     required this.lastName,
     this.level = 'Explorer',
+    this.role = 'traveler',
     this.favoriteDestination,
     this.travelStyles = const [],
     this.avatarUrl,
   });
   final int id;
-  final String email, firstName, lastName, level;
+  final String email, firstName, lastName, level, role;
   final String? favoriteDestination, avatarUrl;
   final List<String> travelStyles;
   String get fullName => '$firstName $lastName'.trim();
@@ -123,6 +124,7 @@ class UserProfile {
         firstName: j['firstName'] as String? ?? '',
         lastName: j['lastName'] as String? ?? '',
         level: j['level'] as String? ?? 'Explorer',
+        role: j['role'] as String? ?? 'traveler',
         favoriteDestination: j['favoriteDestination'] as String?,
         travelStyles: _ls(j['travelStyles']),
         avatarUrl: j['avatarUrl'] as String?,

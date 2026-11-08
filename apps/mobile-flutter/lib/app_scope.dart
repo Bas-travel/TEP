@@ -23,6 +23,12 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-reads the profile (e.g. after an admin approved a partner application, which changes the role).
+  Future<void> refreshProfile() async {
+    _user = await api.me();
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await api.logout();
     _user = null;

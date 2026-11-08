@@ -1,6 +1,9 @@
 import 'models.dart';
 import 'models_engage.dart';
 
+/// JSON object as exchanged with the portal endpoints.
+typedef Json = Map<String, Object?>;
+
 class BookingLine {
   const BookingLine(this.listingId, this.quantity);
   final int listingId, quantity;
@@ -69,6 +72,11 @@ abstract class ApiClient {
 
   /// Returns true when the caller is now a member.
   Future<bool> toggleGroup(int id);
+
+  // ---- portals (partner / admin / staff) and traveler partner application ----
+  /// Generic call to a path of docs/api/openapi.yaml given with its full prefix, e.g. `/partner/v1/listings`
+  /// or `/v1/partners/apply`. Portal pages work with JSON maps; the server enforces the role (403 otherwise).
+  Future<Json> portal(String method, String path, {Object? body, Map<String, String?> query = const {}});
 
   // ---- account ----
   Future<void> changePassword({required String currentPassword, required String newPassword});

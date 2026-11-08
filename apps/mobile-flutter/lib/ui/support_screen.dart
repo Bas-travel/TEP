@@ -5,6 +5,7 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/models_engage.dart';
+import 'portal/portal_kit.dart';
 import 'widgets/common.dart';
 
 /// Board 1.23 (help center / FAQ) and 1.24 (contact us) in one screen with two tabs.
@@ -108,7 +109,7 @@ class _ContactTabState extends State<_ContactTab> {
       ),
       const SectionHeader('ข้อความที่ส่งแล้ว'),
       SizedBox(
-        height: 260,
+        height: 380,
         child: AsyncBody<List<SupportTicket>>(
           key: ValueKey('tk-$_version'),
           load: api.tickets,
@@ -123,6 +124,26 @@ class _ContactTabState extends State<_ContactTab> {
                       Text(t.subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
                       Text(t.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: TepColors.muted)),
                       Text(dmy(t.createdAt), style: const TextStyle(color: TepColors.muted, fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        StatePill(t.status, ticketStatusLabels),
+                        const Spacer(),
+                        TextButton(
+                          key: Key('ticket-reply-${t.id}'),
+                          onPressed: () async {
+                            final msg = await askText(context, title: 'ตอบกลับทีมงาน', label: 'ข้อความ', maxLength: 2000);
+                            if (msg == null || !mounted) return;
+                            final ok = await act(context, () => api.portal('POST', '/v1/support/tickets/${t.id}/replies', body: {'message': msg}), ok: 'ส่งข้อความแล้ว');
+                            if (ok && mounted) setState(() => _version++);
+                          },
+                          child: const Text('ตอบกลับ'),
+                        ),
+                      ]),
+                      for (final r in t.replies)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('${r.authorRole == 'traveler' ? 'คุณ' : 'ทีมงาน'}: ${r.message}', style: TextStyle(color: r.authorRole == 'traveler' ? TepColors.muted : TepColors.success, fontSize: 13)),
+                        ),
                     ]),
                   ),
                 ),

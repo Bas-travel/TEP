@@ -14,7 +14,7 @@ class TepColors {
   static const line = Color(0xFFF1DFD3);
   static const success = Color(0xFF23925D);
   static const danger = Color(0xFFB91C1C);
-  static const partner = Color(0xFF3988A2); // portal preview only
+  static const partner = Color(0xFF3988A2); // secondary accent (times, tags)
 }
 
 class TepTheme {
