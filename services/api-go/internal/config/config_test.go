@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func valid() Config {
 	return Config{AppEnv: "dev", APIMode: "mock", JWTSecret: PlaceholderJWTSecret, MockPayment: true}
@@ -62,5 +65,14 @@ func TestShortSecret(t *testing.T) {
 	c.JWTSecret = "short"
 	if c.Validate() == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestTemplatePlaceholderIsRejectedWithHint(t *testing.T) {
+	c := valid()
+	c.JWTSecret = "__GENERATE__"
+	err := c.Validate()
+	if err == nil || !strings.Contains(err.Error(), "setup-env") {
+		t.Fatalf("expected hint to run setup-env, got %v", err)
 	}
 }

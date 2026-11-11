@@ -49,7 +49,7 @@ Without the `--dart-define` flags the app runs in mock mode (no backend).
 ## 6. Rules that keep it safe
 - Real environments (beta / production) never use `.env` from this script: secrets come from the host's secret store; the API refuses placeholder secrets and `MIGRATE_SEED` is ignored in production (see `docs/architecture/environment-strategy.md`).
 - Secrets are alphanumeric so they are safe inside the MySQL DSN and compose interpolation; do not add `$`, `#` or spaces if you edit by hand.
-- Ports (`API_PORT`, `MYSQL_PORT`, `REDIS_PORT`, `MINIO_PORT`) can be changed in `.env` if they clash with local services.
+- Ports (`API_PORT`, `MYSQL_PORT` (default 3307), `REDIS_PORT`, `MINIO_PORT`) can be changed in `.env` if they clash with local services.
 
 ## Troubleshooting
 | Symptom | Cause / fix |
