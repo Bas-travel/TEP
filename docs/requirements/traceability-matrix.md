@@ -33,4 +33,4 @@
 | REQ-STF-02 | Ticket replies, daily report | 4.3–4.4 | staff-portal | support_ticket_replies | — |
 | REQ-PRF-02 | Settings / theme | S30 | `/me/settings` | user prefs JSON | Widget |
 
-Classification today: requirements **documented**; implementation **NOT IMPLEMENTED** except prototype UI mock.
+Classification today: core Sprint 1/Sprint 2 traveler flows are implemented in mock and/or DB-backed API paths; external gateways, partner/admin/staff operations, maps, weather, and live chat remain deferred or require credentials/services.

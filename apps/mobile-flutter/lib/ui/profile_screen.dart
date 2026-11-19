@@ -23,16 +23,38 @@ class ProfileScreen extends StatelessWidget {
             CircleAvatar(
               radius: 40,
               backgroundColor: TepColors.primary,
-              child: Text((u?.firstName.isNotEmpty ?? false) ? u!.firstName.characters.first : '?', style: const TextStyle(color: Colors.white, fontSize: 32)),
+              child: Text(
+                  (u?.firstName.isNotEmpty ?? false)
+                      ? u!.firstName.characters.first
+                      : '?',
+                  style: const TextStyle(color: Colors.white, fontSize: 32)),
             ),
             const SizedBox(height: 12),
-            Text(u?.fullName ?? '', key: const Key('profile-name'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            Text(u?.email ?? '', style: const TextStyle(color: TepColors.muted)),
+            Text(u?.fullName ?? '',
+                key: const Key('profile-name'),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            Text(u?.email ?? '',
+                style: const TextStyle(color: TepColors.muted)),
             const SizedBox(height: 8),
-            Chip(label: Text(u?.level ?? ''), avatar: const Icon(Icons.workspace_premium_rounded, size: 18, color: TepColors.accent)),
-            if (u != null && u.travelStyles.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(spacing: 6, children: [for (final s in u.travelStyles) Chip(label: Text(s), visualDensity: VisualDensity.compact)]),
+            Chip(
+                label: Text(u?.level ?? ''),
+                avatar: const Icon(Icons.workspace_premium_rounded,
+                    size: 18, color: TepColors.accent)),
+            if (u != null) ...[
+              const SizedBox(height: 6),
+              Chip(
+                key: Key('profile-role-${u.role}'),
+                avatar: const Icon(Icons.verified_user_outlined,
+                    size: 18, color: TepColors.primary),
+                label: Text('สิทธิ์: ${switch (u.role) {
+                  AccessRole.partner => 'พาร์ทเนอร์',
+                  AccessRole.admin => 'แอดมิน',
+                  AccessRole.staff => 'พนักงาน',
+                  AccessRole.moderator => 'ผู้ดูแล',
+                  _ => 'ผู้เดินทาง'
+                }}'),
+              ),
             ],
           ]),
         ),
@@ -42,32 +64,41 @@ class ProfileScreen extends StatelessWidget {
           child: Column(children: [
             ListTile(
               key: const Key('open-faq'),
-              leading: const Icon(Icons.help_outline_rounded, color: TepColors.primary),
+              leading: const Icon(Icons.help_outline_rounded,
+                  color: TepColors.primary),
               title: const Text('ศูนย์ช่วยเหลือ'),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FaqScreen())),
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const FaqScreen())),
             ),
             const Divider(height: 1),
             ListTile(
               key: const Key('open-change-password'),
-              leading: const Icon(Icons.lock_outline_rounded, color: TepColors.primary),
+              leading: const Icon(Icons.lock_outline_rounded,
+                  color: TepColors.primary),
               title: const Text('เปลี่ยนรหัสผ่าน'),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ChangePasswordScreen())),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const ChangePasswordScreen())),
             ),
             const Divider(height: 1),
             ListTile(
               key: const Key('logout'),
-              leading: const Icon(Icons.logout_rounded, color: TepColors.danger),
-              title: const Text('ออกจากระบบ', style: TextStyle(color: TepColors.danger)),
+              leading:
+                  const Icon(Icons.logout_rounded, color: TepColors.danger),
+              title: const Text('ออกจากระบบ',
+                  style: TextStyle(color: TepColors.danger)),
               onTap: () => guarded(context, session.logout),
             ),
             const Divider(height: 1),
             ListTile(
               key: const Key('delete-account'),
-              leading: const Icon(Icons.delete_forever_rounded, color: TepColors.danger),
-              title: const Text('ลบบัญชี', style: TextStyle(color: TepColors.danger)),
-              subtitle: const Text('ข้อมูลส่วนตัวและโพสต์จะถูกลบ ประวัติการจองยังเก็บไว้ตามกฎหมาย'),
+              leading: const Icon(Icons.delete_forever_rounded,
+                  color: TepColors.danger),
+              title: const Text('ลบบัญชี',
+                  style: TextStyle(color: TepColors.danger)),
+              subtitle: const Text(
+                  'ข้อมูลส่วนตัวและโพสต์จะถูกลบ ประวัติการจองยังเก็บไว้ตามกฎหมาย'),
               onTap: () => _confirmDelete(context),
             ),
           ]),
@@ -85,8 +116,15 @@ Future<void> _confirmDelete(BuildContext context) async {
       title: const Text('ลบบัญชีถาวร?'),
       content: const Text('การลบไม่สามารถย้อนกลับได้'),
       actions: [
-        TextButton(key: const Key('delete-cancel'), onPressed: () => Navigator.of(ctx).pop(false), child: const Text('ยกเลิก')),
-        FilledButton(key: const Key('delete-confirm'), style: FilledButton.styleFrom(backgroundColor: TepColors.danger), onPressed: () => Navigator.of(ctx).pop(true), child: const Text('ลบบัญชี')),
+        TextButton(
+            key: const Key('delete-cancel'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('ยกเลิก')),
+        FilledButton(
+            key: const Key('delete-confirm'),
+            style: FilledButton.styleFrom(backgroundColor: TepColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('ลบบัญชี')),
       ],
     ),
   );
@@ -107,7 +145,8 @@ class FaqScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('ศูนย์ช่วยเหลือ')),
       body: AsyncBody<List<Faq>>(
         load: api.faqs,
-        builder: (context, items, _) => ListView(padding: const EdgeInsets.all(16), children: [
+        builder: (context, items, _) =>
+            ListView(padding: const EdgeInsets.all(16), children: [
           for (final f in items)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -116,7 +155,8 @@ class FaqScreen extends StatelessWidget {
                 child: ExpansionTile(
                   shape: const Border(),
                   collapsedShape: const Border(),
-                  title: Text(f.question, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  title: Text(f.question,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   expandedAlignment: Alignment.centerLeft,
                   children: [Text(f.answer)],
