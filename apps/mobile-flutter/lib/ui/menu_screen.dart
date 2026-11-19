@@ -7,7 +7,7 @@ import '../data/models.dart';
 import 'account_screens.dart';
 import 'city_guide_screen.dart';
 import 'community_screen.dart';
-import 'portals_screen.dart';
+import 'partner_apply_screen.dart';
 import 'reviews_screen.dart';
 import 'support_screen.dart';
 import 'trips_screen.dart';
@@ -50,7 +50,7 @@ class MenuScreen extends StatelessWidget {
     _Entry('reviews', Icons.star_rounded, 'รีวิวของฉัน', page: () => const ReviewsScreen()),
     _Entry('map', Icons.map_rounded, 'แผนที่ใกล้ฉัน', page: () => const ComingSoonScreen(title: 'แผนที่ใกล้ฉัน', icon: Icons.map_rounded, note: 'MVP รอบนี้เปิดแผนที่ผ่านลิงก์ภายนอก (deep link) เท่านั้น — แผนที่ในแอปอยู่ในแผนเฟสถัดไป')),
     _Entry('weather', Icons.wb_sunny_rounded, 'พยากรณ์อากาศ', page: () => const ComingSoonScreen(title: 'พยากรณ์อากาศ', icon: Icons.wb_sunny_rounded, note: 'ต้องเชื่อมผู้ให้บริการสภาพอากาศภายนอก — อยู่นอกขอบเขต MVP รอบนี้')),
-    _Entry('portals', Icons.dashboard_customize_rounded, 'พอร์ทัลพาร์ทเนอร์ / แอดมิน / พนักงาน (ตัวอย่าง)', page: () => const PortalsScreen()),
+    _Entry('partner', Icons.handshake_rounded, 'สมัครเป็นพาร์ทเนอร์', page: () => const PartnerApplyScreen()),
   ];
 
   void _open(BuildContext context, _Entry e) {

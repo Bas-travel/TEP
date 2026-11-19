@@ -158,6 +158,12 @@ func (s *Server) Handler() http.Handler {
 
 	s.engageRoutes(m)
 	s.communityRoutes(m)
+	m.HandleFunc("POST /v1/partners/apply", s.authed(s.applyPartner))
+	m.HandleFunc("GET /v1/partners/me", s.authed(s.myPartnerApplication))
+	m.HandleFunc("POST /v1/support/tickets/{ticketId}/replies", s.authed(s.replyOwnTicket))
+	s.partnerRoutes(m)
+	s.adminRoutes(m)
+	s.staffRoutes(m)
 
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { httpx.NotFound(w, r) })
 	return m

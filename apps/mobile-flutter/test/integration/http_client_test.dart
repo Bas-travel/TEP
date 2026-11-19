@@ -27,6 +27,23 @@ void main() {
       expect((await api.faqs()).length, 4);
     });
 
+    test('portals: each role reaches its own API prefix and only that one', () async {
+      Matcher status(int s) => throwsA(isA<ApiException>().having((e) => e.status, 'status', s));
+      await api.login('staff@tep.dev', 'Passw0rd!');
+      expect((await api.me()).role, 'staff');
+      expect((await api.portal('GET', '/staff/v1/dashboard')).containsKey('openTickets'), isTrue);
+      await expectLater(api.portal('GET', '/admin/v1/users'), status(403));
+      await expectLater(api.portal('GET', '/partner/v1/dashboard'), status(403));
+      await api.login('admin@tep.dev', 'Passw0rd!');
+      final users = await api.portal('GET', '/admin/v1/users', query: {'role': 'staff'});
+      expect(users['total'], 1);
+      await api.login('partner@tep.dev', 'Passw0rd!');
+      final listings = await api.portal('GET', '/partner/v1/listings');
+      expect((listings['items'] as List).length, 4);
+      await api.login('demo@tep.dev', 'Passw0rd!');
+      await expectLater(api.portal('GET', '/partner/v1/listings'), status(403));
+    });
+
     test('auth errors map to ApiException with code', () async {
       await expectLater(api.wallet(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)));
       await expectLater(api.login('demo@tep.dev', 'nope'), throwsA(isA<ApiException>().having((e) => e.code, 'code', 'AUTH_UNAUTHENTICATED')));

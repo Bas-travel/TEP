@@ -44,7 +44,7 @@ Flutter implementation should preserve UX parity documented in `docs/ux/`.
 | `scripts/gen_seed.py` | One source for seed data → SQL migration, Go fixtures, Flutter mock fixtures (`--check` detects drift) |
 
 ```bash
-cp .env.example .env              # DEV placeholders only; .env is git-ignored — never commit it
+scripts/setup-env.sh                # Windows: scripts\setup-env.ps1 — generates .env with random secrets (git-ignored)
 docker compose up --build         # API on http://localhost:8080
 curl localhost:8080/health/ready  # {"checks":{"mysql":"ok","redis":"ok"},"status":"ok",...}
 

@@ -23,6 +23,10 @@ erDiagram
   coupons ||--o{ user_coupons : issued_from
   users ||--o{ notifications : receives
   users ||--o{ support_tickets : opens
+  support_tickets ||--o{ support_ticket_replies : has
+  users ||--o| partners : applies_as
+  partners ||--o{ listings : owns
+  bookings ||--o{ booking_checks : verified_by_staff
   users ||--o{ community_posts : authors
   community_posts ||--o{ community_comments : has
   community_groups ||--o{ community_posts : contains

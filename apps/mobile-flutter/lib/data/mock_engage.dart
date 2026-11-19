@@ -1,5 +1,6 @@
 import 'api_client.dart';
 import 'mock_fixtures.dart';
+import 'mock_portal.dart';
 import 'models.dart';
 import 'models_engage.dart';
 
@@ -9,6 +10,8 @@ mixin MockEngage implements ApiClient {
   Duration get mockLatency;
   bool get mockSignedIn;
   DateTime mockNow();
+  MockPortal get mockPortal;
+  UserProfile get mockUser;
 
   UserSettings _settings = const UserSettings();
   final List<Coupon> _coupons = [
@@ -24,7 +27,6 @@ mixin MockEngage implements ApiClient {
   ];
   final List<SavedTrip> _trips = [];
   final List<Review> _reviews = [];
-  final List<SupportTicket> _tickets = [];
   late final List<Post> _posts = [
     Post(id: 1, authorId: 'm_nok', type: 'story', destination: 'ภูเก็ต', text: 'พระอาทิตย์ตกที่หาดกะตะสวยมาก แนะนำให้มาก่อน 17:30', likeCount: 42, hasImage: true, createdAt: mockNow().subtract(const Duration(hours: 3))),
     Post(id: 2, authorId: 'm_pim', type: 'tip', destination: 'เชียงใหม่', text: 'ขึ้นดอยสุเทพช่วงเช้า อากาศเย็นและคนน้อย', likeCount: 18, hasImage: false, createdAt: mockNow().subtract(const Duration(hours: 9))),
@@ -34,7 +36,7 @@ mixin MockEngage implements ApiClient {
   ];
   final Set<int> _liked = {}, _saved = {};
   final Map<int, List<Comment>> _comments = {};
-  int _nextTrip = 1, _nextReview = 1, _nextTicket = 1, _nextPost = 6, _nextComment = 1;
+  int _nextTrip = 1, _nextReview = 1, _nextPost = 6, _nextComment = 1;
   late final List<Group> _groups = [
     const Group(id: 1, name: 'สายทะเลอันดามัน', description: 'แชร์ที่เที่ยวและร้านอาหารฝั่งอันดามัน', destination: 'ภูเก็ต', memberCount: 2, rules: ['สุภาพและให้เกียรติกัน', 'ห้ามโฆษณาโดยไม่ได้รับอนุญาต']),
     const Group(id: 2, name: 'เที่ยวเหนือ', description: 'ดอย ธรรมชาติ และคาเฟ่ภาคเหนือ', destination: 'เชียงใหม่', memberCount: 1, rules: ['สุภาพและให้เกียรติกัน']),
@@ -141,16 +143,14 @@ mixin MockEngage implements ApiClient {
       });
 
   @override
-  Future<List<SupportTicket>> tickets() => _e(() => List.of(_tickets));
+  Future<List<SupportTicket>> tickets() => _e(() => mockPortal.ticketsOf(mockUser.id));
 
   @override
   Future<SupportTicket> createTicket({required String subject, required String message}) => _e(() {
         if (subject.trim().isEmpty) throw _invalid('subject', 'กรุณาระบุหัวข้อ');
         if (subject.length > 120) throw _invalid('subject', 'หัวข้อยาวเกิน 120 ตัวอักษร');
         if (message.trim().isEmpty) throw _invalid('message', 'กรุณาระบุข้อความ');
-        final t = SupportTicket(id: _nextTicket++, subject: subject, message: message, createdAt: mockNow());
-        _tickets.insert(0, t);
-        return t;
+        return mockPortal.addTicket(mockUser, subject.trim(), message.trim());
       });
 
   @override

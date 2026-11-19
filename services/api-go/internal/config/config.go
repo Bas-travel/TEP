@@ -70,7 +70,9 @@ func (c Config) Validate() error {
 	if c.APIMode != "mock" && c.APIMode != "db" {
 		errs = append(errs, fmt.Errorf("API_MODE must be mock|db, got %q", c.APIMode))
 	}
-	if len(c.JWTSecret) < 32 {
+	if strings.Contains(c.JWTSecret, "__GENERATE__") {
+		errs = append(errs, errors.New("JWT_SECRET is still the template value __GENERATE__; run scripts/setup-env.ps1 (or .sh) to create .env"))
+	} else if len(c.JWTSecret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters"))
 	}
 	if c.AppEnv != "dev" && c.JWTSecret == PlaceholderJWTSecret {

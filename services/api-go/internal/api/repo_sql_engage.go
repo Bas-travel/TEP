@@ -287,24 +287,40 @@ func (t *sqlTx) AddTicket(uid int64, subject, message string, now time.Time) (Su
 		return SupportTicket{}, err
 	}
 	id, _ := res.LastInsertId()
-	return SupportTicket{ID: id, Subject: subject, Message: message, CreatedAt: now}, nil
+	return SupportTicket{ID: id, Subject: subject, Message: message, Status: "open", CreatedAt: now, Replies: []TicketReply{}}, nil
 }
 
 func (t *sqlTx) Tickets(uid int64) ([]SupportTicket, error) {
-	rows, err := t.query(`SELECT id, subject, message, created_at FROM support_tickets WHERE user_id=? ORDER BY id`, uid)
+	rows, err := t.query(`SELECT id, subject, message, status, created_at FROM support_tickets WHERE user_id=? ORDER BY id`, uid)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	out := []SupportTicket{}
+	var ids []int64
 	for rows.Next() {
 		var s SupportTicket
-		if err := rows.Scan(&s.ID, &s.Subject, &s.Message, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Subject, &s.Message, &s.Status, &s.CreatedAt); err != nil {
+			rows.Close()
 			return nil, err
 		}
+		s.Replies = []TicketReply{}
 		out = append(out, s)
+		ids = append(ids, s.ID)
 	}
-	return out, rows.Err()
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rep, err := t.loadReplies(ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if r := rep[out[i].ID]; r != nil {
+			out[i].Replies = r
+		}
+	}
+	return out, nil
 }
 
 func (t *sqlTx) AddJob(uid int64, j jobRec, now time.Time) error {

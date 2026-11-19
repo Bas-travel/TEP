@@ -2,6 +2,7 @@ import '../core/format.dart';
 import 'api_client.dart';
 import 'mock_engage.dart';
 import 'mock_fixtures.dart';
+import 'mock_portal.dart';
 import 'models.dart';
 
 /// In-memory implementation of the API contract so the app runs with no backend (API_MODE=mock).
@@ -30,47 +31,53 @@ class MockApiClient with MockEngage implements ApiClient {
   bool get mockSignedIn => _signedIn;
   @override
   DateTime mockNow() => _now();
+  @override
+  MockPortal get mockPortal => _portal;
+  @override
+  UserProfile get mockUser => _user;
+
+  late final MockPortal _portal = MockPortal(_now);
+
+  /// Back-office demo accounts (same password as the demo traveler) — mirror services/api-go seeds.
+  static const portalAccounts = <String, UserProfile>{
+    'admin@tep.dev': UserProfile(id: 6, email: 'admin@tep.dev', firstName: 'แอดมิน', lastName: 'ระบบ', role: 'admin'),
+    'staff@tep.dev': UserProfile(id: 7, email: 'staff@tep.dev', firstName: 'สมชาย', lastName: 'ซัพพอร์ต', role: 'staff'),
+    'partner@tep.dev': UserProfile(id: 8, email: 'partner@tep.dev', firstName: 'วิภา', lastName: 'อันดามัน', role: 'partner'),
+  };
+
+  @override
+  Future<Json> portal(String method, String path, {Object? body, Map<String, String?> query = const {}}) => _t(() {
+        _requireAuth();
+        return _portal.call(method, path, user: _user, query: query, body: body);
+      });
 
   static const demoEmail = 'demo@tep.dev';
   static const demoPassword = 'Passw0rd!';
-  static const _demoAccounts = <String, UserProfile>{
-    demoEmail: UserProfile(
-        id: 1,
-        email: demoEmail,
-        firstName: 'สวัสดี',
-        lastName: 'อนันต์',
-        level: 'Explorer',
-        role: AccessRole.traveler,
-        favoriteDestination: 'ภูเก็ต',
-        travelStyles: ['ทะเล', 'คาเฟ่']),
-    'partner@tep.dev': UserProfile(
-        id: 11,
-        email: 'partner@tep.dev',
-        firstName: 'พิมพ์',
-        lastName: 'พาร์ทเนอร์',
-        role: AccessRole.partner),
-    'staff@tep.dev': UserProfile(
-        id: 12,
-        email: 'staff@tep.dev',
-        firstName: 'สมชาย',
-        lastName: 'พนักงาน',
-        role: AccessRole.staff),
-    'moderator@tep.dev': UserProfile(
-        id: 13,
-        email: 'moderator@tep.dev',
-        firstName: 'นภา',
-        lastName: 'ผู้ดูแล',
-        role: AccessRole.moderator),
-    'admin@tep.dev': UserProfile(
-        id: 14,
-        email: 'admin@tep.dev',
-        firstName: 'อารยา',
-        lastName: 'ผู้ดูแลระบบ',
-        role: AccessRole.admin),
+  static const _moderator = UserProfile(
+      id: 13,
+      email: 'moderator@tep.dev',
+      firstName: 'นภา',
+      lastName: 'ผู้ดูแล',
+      role: AccessRole.moderator);
+
+  /// Every demo login (traveler + back-office); all share [demoPassword].
+  static const _accounts = <String, UserProfile>{
+    demoEmail: _demoUser,
+    ...portalAccounts,
+    'moderator@tep.dev': _moderator,
   };
 
   bool _signedIn = false;
   String _password = demoPassword;
+  static const _demoUser = UserProfile(
+    id: 1,
+    email: demoEmail,
+    firstName: 'สวัสดี',
+    lastName: 'อนันต์',
+    level: 'Explorer',
+    favoriteDestination: 'ภูเก็ต',
+    travelStyles: ['ทะเล', 'คาเฟ่'],
+  );
   UserProfile _user = const UserProfile(
     id: 1,
     email: demoEmail,
@@ -110,9 +117,8 @@ class MockApiClient with MockEngage implements ApiClient {
 
   @override
   Future<void> login(String email, String password) => _t(() {
-        final normalized = email.trim().toLowerCase();
-        final profile = _demoAccounts[normalized];
-        if (profile == null || password != demoPassword) {
+        final profile = _accounts[email.trim().toLowerCase()];
+        if (profile == null || password != _password) {
           throw const ApiException(
               status: 401,
               code: 'AUTH_UNAUTHENTICATED',
