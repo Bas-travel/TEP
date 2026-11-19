@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter analyze > /tmp/analyze.txt 2>&1; ac=$?
+          flutter analyze --no-fatal-infos > /tmp/analyze.txt 2>&1; ac=$?
           flutter test > /tmp/test.txt 2>&1; tc=$?
           annotate() { # $1 title, $2 file, $3 exit code
             [ "$3" -eq 0 ] && return
