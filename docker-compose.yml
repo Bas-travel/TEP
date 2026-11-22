@@ -45,6 +45,7 @@ services:
       APP_ENV: ${APP_ENV:-dev}
       HTTP_ADDR: ":8080"
       API_MODE: ${API_MODE:-db}
+      DEMO_DATASET: ${DEMO_DATASET:-true}
       JWT_SECRET: ${JWT_SECRET:?set in .env (>= 32 chars)}
       MOCK_PAYMENT: ${MOCK_PAYMENT:-true}
       MYSQL_DSN: ${MYSQL_USER:-tep}:${MYSQL_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-tep}?parseTime=true&charset=utf8mb4
