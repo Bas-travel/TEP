@@ -21,10 +21,16 @@ func (s *Server) seedDemo(ctx context.Context) error {
 		return err
 	}
 	return s.repo.Tx(ctx, func(tx Tx) error {
-		if _, err := tx.UserByEmail("demo@tep.dev"); err == nil {
+		if _, err := tx.UserByEmail("demo@tep.dev"); err != nil {
+			if err := s.seedAll(tx, hash); err != nil {
+				return err
+			}
+		}
+		if !s.demoDataset {
 			return nil
 		}
-		return s.seedAll(tx, hash)
+		// Full demo dataset; also tops up databases seeded before it existed. No-op once present.
+		return s.seedDataset(tx, hash)
 	})
 }
 

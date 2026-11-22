@@ -172,7 +172,7 @@ func TestAdminPortal(t *testing.T) {
 
 	var code int
 	_, m, _ := e.do("GET", "/admin/v1/dashboard", ad, nil)
-	if m["bookingsTotal"] != 3.0 || m["listingsPublished"] != 12.0 {
+	if m["bookingsTotal"] != 3.0 || m["listingsPublished"] != 30.0 {
 		t.Fatal(m)
 	}
 	// users: filter, paging, validation

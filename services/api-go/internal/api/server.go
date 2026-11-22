@@ -28,6 +28,7 @@ type Server struct {
 	log         *slog.Logger
 	now         func() time.Time
 	checks      map[string]Check
+	demoDataset bool          // seed the full demo dataset (cfg.DemoDataset)
 	settleAfter time.Duration // mock PSP (MOCK_PAYMENT=true): how long a pending intent stays pending
 }
 
@@ -38,7 +39,7 @@ type Option func(*Server)
 func WithRepo(r Repo) Option { return func(s *Server) { s.repo = r } }
 
 func New(cfg config.Config, log *slog.Logger, checks map[string]Check, opts ...Option) *Server {
-	s := &Server{cfg: cfg, repo: newMemRepo(), log: log, now: time.Now, checks: checks, settleAfter: 3 * time.Second}
+	s := &Server{cfg: cfg, repo: newMemRepo(), log: log, now: time.Now, checks: checks, settleAfter: 3 * time.Second, demoDataset: cfg.DemoDataset}
 	for _, o := range opts {
 		o(s)
 	}

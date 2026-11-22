@@ -141,11 +141,11 @@ func TestAuthFlowAndRefreshReuse(t *testing.T) {
 func TestCatalog(t *testing.T) {
 	e := newEnv(t, nil)
 	_, m, _ := e.do("GET", "/v1/catalog/destinations", "", nil)
-	if len(m["items"].([]any)) != 6 {
+	if len(m["items"].([]any)) != 8 {
 		t.Fatal(m)
 	}
 	_, m, _ = e.do("GET", "/v1/catalog/listings?type=hotel", "", nil)
-	if n := len(m["items"].([]any)); n != 5 {
+	if n := len(m["items"].([]any)); n != 11 {
 		t.Fatalf("hotels %d", n)
 	}
 	_, m, _ = e.do("GET", "/v1/catalog/listings?q=ภูเก็ต&limit=2", "", nil)

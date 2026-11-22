@@ -19,6 +19,8 @@ type Config struct {
 	MySQLDSN    string
 	RedisAddr   string
 	MockPayment bool
+	// DemoDataset loads the full DEV/BETA demo dataset (20-30 rows per module) on top of the base demo accounts. Dev only.
+	DemoDataset bool
 	Version     string
 
 	// WebhookSecret authenticates PSP callbacks (HMAC-SHA256). Empty disables the webhook endpoint.
@@ -45,6 +47,7 @@ func Load() Config {
 		MySQLDSN:    getenv("MYSQL_DSN", ""),
 		RedisAddr:   getenv("REDIS_ADDR", ""),
 		MockPayment: getenv("MOCK_PAYMENT", "true") == "true",
+		DemoDataset: getenv("DEMO_DATASET", "true") == "true",
 		Version:     getenv("APP_VERSION", "0.1.0-sprint1"),
 
 		WebhookSecret: getenv("WEBHOOK_SECRET", ""),
