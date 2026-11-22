@@ -53,6 +53,45 @@ func (t *sqlTx) count(from string, w *whereBuilder) (int, error) {
 
 // ---- catalog ----
 
+func (t *sqlTx) SaveDestination(d *Destination) error {
+	if d.ID == 0 {
+		res, err := t.exec(`INSERT INTO destinations (slug, name_th, subtitle, gradient_css) VALUES (?,?,?,?)`,
+			d.Slug, d.Name, nullStr(d.Subtitle), nullStr(d.GradientCSS))
+		if err != nil {
+			if isDup(err) {
+				return ErrDuplicate
+			}
+			return err
+		}
+		d.ID, err = res.LastInsertId()
+		return err
+	}
+	if err := t.exists(`SELECT 1 FROM destinations WHERE id=? FOR UPDATE`, d.ID); err != nil {
+		return err
+	}
+	_, err := t.exec(`UPDATE destinations SET slug=?, name_th=?, subtitle=?, gradient_css=? WHERE id=?`,
+		d.Slug, d.Name, nullStr(d.Subtitle), nullStr(d.GradientCSS), d.ID)
+	if isDup(err) {
+		return ErrDuplicate
+	}
+	return err
+}
+
+func (t *sqlTx) DeleteDestination(id int64) error {
+	if err := t.exists(`SELECT 1 FROM destinations WHERE id=? FOR UPDATE`, id); err != nil {
+		return err
+	}
+	var n int
+	if err := t.row(`SELECT COUNT(*) FROM listings WHERE destination_id=?`, id).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrDuplicate
+	}
+	_, err := t.exec(`DELETE FROM destinations WHERE id=?`, id)
+	return err
+}
+
 func (t *sqlTx) Destinations() ([]Destination, error) {
 	rows, err := t.query(`SELECT id, slug, name_th, COALESCE(subtitle,''), COALESCE(gradient_css,'') FROM destinations ORDER BY id`)
 	if err != nil {

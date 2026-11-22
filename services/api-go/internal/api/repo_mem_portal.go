@@ -14,8 +14,58 @@ func cloneListing(l *listingRow) listingRow {
 	return cp
 }
 
+func (m *memRepo) initDests() {
+	if !m.destInit {
+		m.destInit = true
+		m.dests = append([]Destination{}, seedDestinations...)
+	}
+}
+
 func (m *memRepo) Destinations() ([]Destination, error) {
-	return append([]Destination{}, seedDestinations...), nil
+	m.initDests()
+	out := append([]Destination{}, m.dests...)
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+func (m *memRepo) SaveDestination(d *Destination) error {
+	m.initDests()
+	var next int64 = 1
+	for _, x := range m.dests {
+		if x.Slug == d.Slug && x.ID != d.ID {
+			return ErrDuplicate
+		}
+		next = max(next, x.ID+1)
+	}
+	if d.ID == 0 {
+		d.ID = next
+		m.dests = append(m.dests, *d)
+		return nil
+	}
+	for i := range m.dests {
+		if m.dests[i].ID == d.ID {
+			m.dests[i] = *d
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (m *memRepo) DeleteDestination(id int64) error {
+	m.initDests()
+	for i := range m.dests {
+		if m.dests[i].ID != id {
+			continue
+		}
+		for _, l := range m.listings {
+			if l.DestinationID == id {
+				return ErrDuplicate
+			}
+		}
+		m.dests = append(m.dests[:i], m.dests[i+1:]...)
+		return nil
+	}
+	return ErrNotFound
 }
 
 func (m *memRepo) listingPublic(l *listingRow) bool {

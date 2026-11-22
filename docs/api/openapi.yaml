@@ -2321,7 +2321,11 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '204': { description: No content }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { dismissed: { type: integer } } }
 
   /admin/v1/reports/{postId}/remove:
     servers:
@@ -2336,6 +2340,79 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '204': { description: No content }
+
+  /admin/v1/destinations:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Destinations
+      operationId: adminListDestinations
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/DestinationAdmin' } } } } ] }
+    post:
+      tags: [Admin portal]
+      summary: Create destination
+      operationId: adminCreateDestination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DestinationAdmin' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DestinationAdmin' }
+
+  /admin/v1/destinations/{destId}:
+    servers:
+      - url: http://localhost:8080
+    put:
+      tags: [Admin portal]
+      summary: Update destination
+      operationId: adminUpdateDestination
+      parameters:
+        - { name: destId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DestinationAdmin' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DestinationAdmin' }
+    delete:
+      tags: [Admin portal]
+      summary: Delete destination (409 while listings reference it)
+      operationId: adminDeleteDestination
+      parameters:
+        - { name: destId, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '204': { description: No content }
 
 components:
@@ -3004,6 +3081,15 @@ components:
         reports: { type: integer }
         reasons: { type: array, items: { type: string } }
         lastReportAt: { type: string, format: date-time }
+    DestinationAdmin:
+      type: object
+      required: [slug, name]
+      properties:
+        id: { type: integer, format: int64, readOnly: true }
+        slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$' }
+        name: { type: string }
+        subtitle: { type: string }
+        gradientCss: { type: string }
     AuditLog:
       type: object
       properties:

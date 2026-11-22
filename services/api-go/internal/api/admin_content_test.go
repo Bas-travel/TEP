@@ -189,3 +189,61 @@ func (e *env) requireAudit(tok string, actions ...string) {
 		}
 	}
 }
+
+func TestAdminDestinations(t *testing.T) {
+	e := newEnv(t, nil)
+	ad, tr := e.loginAs("admin@tep.dev"), e.login()
+	base := e.itemsTotal(ad, "/admin/v1/destinations")
+
+	for name, body := range map[string]map[string]any{
+		"bad slug":     {"slug": "Chiang Mai", "name": "เชียงใหม่"},
+		"short name":   {"slug": "cm", "name": "x"},
+		"bad gradient": {"slug": "test-dest", "name": "ทดสอบ", "gradientCss": "red;} body{display:none"},
+	} {
+		if code, _, _ := e.do("POST", "/admin/v1/destinations", ad, body); code != 422 {
+			t.Errorf("%s: want 422, got %d", name, code)
+		}
+	}
+	if code, _, _ := e.do("POST", "/admin/v1/destinations", tr, map[string]any{"slug": "qa-dest", "name": "ทดสอบ"}); code != 403 {
+		t.Errorf("traveler create = %d, want 403", code)
+	}
+	code, d, _ := e.do("POST", "/admin/v1/destinations", ad, map[string]any{"slug": "QA-Dest", "name": "ปลายทางทดสอบ", "subtitle": "ใช้ทดสอบ", "gradientCss": "linear-gradient(135deg,#0ea5e9,#22d3ee)"})
+	if code != 201 || d["slug"] != "qa-dest" {
+		t.Fatalf("create = %d %v", code, d)
+	}
+	id := fmt.Sprint(int(d["id"].(float64)))
+	if code, _, _ := e.do("POST", "/admin/v1/destinations", ad, map[string]any{"slug": "qa-dest", "name": "ซ้ำ"}); code != 409 {
+		t.Errorf("duplicate slug = %d, want 409", code)
+	}
+	if code, m, _ := e.do("PUT", "/admin/v1/destinations/"+id, ad, map[string]any{"slug": "qa-dest", "name": "ปลายทางทดสอบ 2"}); code != 200 || m["name"] != "ปลายทางทดสอบ 2" {
+		t.Errorf("update = %d %v", code, m)
+	}
+	if code, _, _ := e.do("PUT", "/admin/v1/destinations/99999", ad, map[string]any{"slug": "zz-none", "name": "ไม่มี"}); code != 404 {
+		t.Errorf("update missing = %d, want 404", code)
+	}
+	// public list reflects the change
+	_, pub, _ := e.do("GET", "/v1/catalog/destinations", "", nil)
+	found := false
+	for _, it := range pitems(pub) {
+		found = found || it.(map[string]any)["slug"] == "qa-dest"
+	}
+	if !found {
+		t.Error("new destination missing from the public list")
+	}
+	// a destination that still has listings cannot be deleted
+	_, all, _ := e.do("GET", "/admin/v1/destinations", ad, nil)
+	first := fmt.Sprint(int(pitems(all)[0].(map[string]any)["id"].(float64)))
+	if code, _, _ := e.do("DELETE", "/admin/v1/destinations/"+first, ad, nil); code != 409 {
+		t.Errorf("delete destination with listings = %d, want 409", code)
+	}
+	if code, _, _ := e.do("DELETE", "/admin/v1/destinations/"+id, ad, nil); code != 204 {
+		t.Errorf("delete = %d, want 204", code)
+	}
+	if code, _, _ := e.do("DELETE", "/admin/v1/destinations/"+id, ad, nil); code != 404 {
+		t.Errorf("delete again = %d, want 404", code)
+	}
+	if got := e.itemsTotal(ad, "/admin/v1/destinations"); got != base {
+		t.Errorf("total %d, want %d", got, base)
+	}
+	e.requireAudit(ad, "admin.destination.create", "admin.destination.update", "admin.destination.delete")
+}

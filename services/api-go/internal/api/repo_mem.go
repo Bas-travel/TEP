@@ -97,6 +97,8 @@ type memRepo struct {
 	reports   []postReportRec
 	faqs      []FaqAdmin
 	faqsInit  bool
+	dests     []Destination
+	destInit  bool
 	nextFaq   int
 
 	listings    map[int64]*listingRow

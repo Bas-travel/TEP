@@ -187,6 +187,8 @@ type Tx interface {
 
 	// ---- catalog (managed by partners; read by travelers) ----
 	Destinations() ([]Destination, error)
+	SaveDestination(d *Destination) error                       // ID 0 = create; ErrDuplicate on slug clash
+	DeleteDestination(id int64) error                           // ErrNotFound / ErrDuplicate (listings still reference it)
 	Listings(f ListingFilter) ([]listingRow, error)             // ordered by id
 	ListingByID(id int64, publicOnly bool) (*listingRow, error) // ErrNotFound when hidden
 	SaveListing(l *listingRow) error                            // ID 0 inserts (sets ID); otherwise upsert with that id
