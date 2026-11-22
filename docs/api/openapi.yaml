@@ -2141,6 +2141,203 @@ paths:
             application/json:
               schema: { type: object }
 
+  /admin/v1/coupons:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Coupons
+      operationId: adminListCoupons
+      parameters:
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/CouponAdmin' } } } } ] }
+    post:
+      tags: [Admin portal]
+      summary: Create coupon
+      operationId: adminCreateCoupon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponAdmin' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouponAdmin' }
+
+  /admin/v1/coupons/{code}:
+    servers:
+      - url: http://localhost:8080
+    put:
+      tags: [Admin portal]
+      summary: Update coupon
+      operationId: adminUpdateCoupon
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponAdmin' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouponAdmin' }
+    delete:
+      tags: [Admin portal]
+      summary: Delete coupon (409 if held in a wallet)
+      operationId: adminDeleteCoupon
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '204': { description: No content }
+
+  /admin/v1/faqs:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: FAQs
+      operationId: adminListFaqs
+      parameters:
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/FaqAdmin' } } } } ] }
+    post:
+      tags: [Admin portal]
+      summary: Create FAQ
+      operationId: adminCreateFaq
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FaqAdmin' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FaqAdmin' }
+
+  /admin/v1/faqs/{faqId}:
+    servers:
+      - url: http://localhost:8080
+    put:
+      tags: [Admin portal]
+      summary: Update FAQ
+      operationId: adminUpdateFaq
+      parameters:
+        - { name: faqId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FaqAdmin' }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FaqAdmin' }
+    delete:
+      tags: [Admin portal]
+      summary: Delete FAQ
+      operationId: adminDeleteFaq
+      parameters:
+        - { name: faqId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '204': { description: No content }
+
+  /admin/v1/reports:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Reported posts (moderation queue)
+      operationId: adminListReports
+      parameters:
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/PostReportRow' } } } } ] }
+
+  /admin/v1/reports/{postId}/dismiss:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Admin portal]
+      summary: Dismiss all reports of a post
+      operationId: adminDismissReports
+      parameters:
+        - { name: postId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '204': { description: No content }
+
+  /admin/v1/reports/{postId}/remove:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Admin portal]
+      summary: Remove a reported post
+      operationId: adminRemoveReportedPost
+      parameters:
+        - { name: postId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '204': { description: No content }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2777,6 +2974,36 @@ components:
             travelerName: { type: string }
             travelerEmail: { type: string }
             replyCount: { type: integer }
+    CouponAdmin:
+      type: object
+      required: [code, title, percentOff]
+      properties:
+        code: { type: string, pattern: '^[A-Z0-9_-]{3,40}$' }
+        title: { type: string }
+        detail: { type: string }
+        percentOff: { type: integer, minimum: 0, maximum: 100, description: 0 = fixed amount (maxDiscount) }
+        minSpend: { type: number, minimum: 0 }
+        maxDiscount: { type: number, minimum: 0 }
+        expiresOn: { type: string, format: date }
+        granted: { type: integer, readOnly: true, description: Wallets holding the coupon }
+        expired: { type: boolean, readOnly: true }
+    FaqAdmin:
+      type: object
+      required: [question, answer]
+      properties:
+        id: { type: integer, readOnly: true }
+        question: { type: string }
+        answer: { type: string }
+        sortNo: { type: integer }
+    PostReportRow:
+      type: object
+      properties:
+        postId: { type: integer, format: int64 }
+        postText: { type: string }
+        author: { type: string }
+        reports: { type: integer }
+        reasons: { type: array, items: { type: string } }
+        lastReportAt: { type: string, format: date-time }
     AuditLog:
       type: object
       properties:

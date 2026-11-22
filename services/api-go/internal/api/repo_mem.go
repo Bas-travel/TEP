@@ -94,7 +94,10 @@ type memRepo struct {
 	saves     map[int64]map[int64]bool
 	hides     map[int64]map[int64]bool // user -> post
 	follows   map[int64]map[int64]bool // follower -> followee
-	reports   int
+	reports   []postReportRec
+	faqs      []FaqAdmin
+	faqsInit  bool
+	nextFaq   int
 
 	listings    map[int64]*listingRow
 	nextListing int64
@@ -833,11 +836,11 @@ func (m *memRepo) HidePost(uid, id int64) error {
 	return nil
 }
 
-func (m *memRepo) ReportPost(_, id int64, _ string, _ time.Time) error {
+func (m *memRepo) ReportPost(uid, id int64, reason string, now time.Time) error {
 	if _, ok := m.posts[id]; !ok {
 		return ErrNotFound
 	}
-	m.reports++
+	m.reports = append(m.reports, postReportRec{postID: id, userID: uid, reason: reason, at: now})
 	return nil
 }
 

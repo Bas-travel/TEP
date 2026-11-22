@@ -27,7 +27,15 @@ func (s *Server) publicListing(ctx context.Context, id int64) (*listingRow, erro
 }
 
 func (s *Server) listFaqs(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteJSON(w, 200, map[string]any{"items": seedFaqs})
+	var rows []FaqAdmin
+	if s.fail(w, r, s.repo.Tx(r.Context(), func(tx Tx) (e error) { rows, e = tx.Faqs(); return })) {
+		return
+	}
+	items := make([]Faq, 0, len(rows))
+	for _, f := range rows {
+		items = append(items, Faq{ID: f.ID, Question: f.Question, Answer: f.Answer})
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"items": items})
 }
 
 func (s *Server) searchListings(w http.ResponseWriter, r *http.Request) {

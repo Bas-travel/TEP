@@ -9,6 +9,7 @@ import (
 )
 
 func (s *Server) adminRoutes(m *http.ServeMux) {
+	s.adminContentRoutes(m)
 	p := s.portal(RoleAdmin)
 	m.HandleFunc("GET /admin/v1/dashboard", p(s.adminDashboard))
 	m.HandleFunc("GET /admin/v1/users", p(s.adminListUsers))

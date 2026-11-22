@@ -171,6 +171,16 @@ type Tx interface {
 	TogglePostSave(uid, id int64) (bool, error)
 	HidePost(uid, id int64) error
 	ReportPost(uid, id int64, reason string, now time.Time) error
+
+	// Admin content management (coupons, FAQs, moderation queue).
+	AdminCoupons(today string) ([]CouponAdmin, error)
+	DeleteCoupon(code string) error // ErrNotFound; ErrDuplicate when still held by a wallet
+	Faqs() ([]FaqAdmin, error)      // ordered by sortNo, id
+	SaveFaq(f *FaqAdmin) error      // ID 0 creates (sets ID); otherwise updates (ErrNotFound)
+	DeleteFaq(id int) error         // ErrNotFound
+	PostReports(offset, limit int) ([]PostReportRow, int, error)
+	DismissPostReports(postID int64) (int, error) // number of reports removed
+	AdminDeletePost(postID int64) error           // removes any post (ErrNotFound)
 	AddComment(uid, postID int64, text string, now time.Time) (Comment, error)
 	Member(viewer int64, handle string) (*MemberProfile, error)
 	ToggleFollow(viewer int64, handle string) (bool, error)
