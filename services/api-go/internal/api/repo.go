@@ -133,6 +133,9 @@ type Tx interface {
 	PendingIntents(uid int64) ([]*intentRec, error)
 	RecordPayment(bookingID int64, intentID, method string, amount float64, status string, now time.Time) error
 	MarkPaymentRefunded(bookingID int64) error
+	AdminPayments(f PaymentFilter) ([]PaymentAdmin, int, error) // newest first
+	PaymentTotals() ([]PaymentTotal, error)                     // one row per status present
+	ReconcilePayments() ([]ReconcileIssue, error)               // empty = books agree
 	GetIdem(uid int64, endpoint, key string) (*idemRec, error)
 	PutIdem(uid int64, endpoint, key string, rec idemRec, now time.Time) error // ErrDuplicate if the key already exists
 	AddWebhookEvent(provider, eventID string, now time.Time) error             // ErrDuplicate => already processed

@@ -33,6 +33,7 @@ func TestPortalRBACMatrix(t *testing.T) {
 		{"GET", "/admin/v1/coupons", []string{"admin"}},
 		{"GET", "/admin/v1/faqs", []string{"admin"}},
 		{"GET", "/admin/v1/destinations", []string{"admin"}},
+		{"GET", "/admin/v1/payments", []string{"admin"}},
 		{"GET", "/admin/v1/reports", []string{"admin"}},
 		{"GET", "/staff/v1/dashboard", []string{"staff", "admin"}},
 		{"GET", "/staff/v1/bookings", []string{"staff", "admin"}},

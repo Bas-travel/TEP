@@ -100,4 +100,11 @@ func TestDemoDatasetCoversEveryMenu(t *testing.T) {
 	if _, after := rows(admin, "/admin/v1/users?limit=1"); after != before {
 		t.Fatalf("seed not idempotent: users %d -> %d", before, after)
 	}
+	// the seeded money trail must reconcile and the payments console must have 20+ rows
+	if _, rec, _ := e.do("GET", "/admin/v1/payments/reconciliation", admin, nil); rec["balanced"] != true {
+		t.Errorf("demo data does not reconcile: %v", rec)
+	}
+	if n := e.itemsTotal(admin, "/admin/v1/payments"); n < 20 {
+		t.Errorf("payments console has %d rows, want >= 20", n)
+	}
 }

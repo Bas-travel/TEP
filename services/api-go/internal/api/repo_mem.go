@@ -28,6 +28,7 @@ type walletRec struct {
 type payRec struct {
 	intent, method, status string
 	amount                 float64
+	at                     time.Time
 }
 
 type postRec struct {
@@ -422,8 +423,8 @@ func (m *memRepo) PendingIntents(uid int64) ([]*intentRec, error) {
 	return out, nil
 }
 
-func (m *memRepo) RecordPayment(bookingID int64, intentID, method string, amount float64, status string, _ time.Time) error {
-	m.pays[bookingID] = &payRec{intent: intentID, method: method, status: status, amount: amount}
+func (m *memRepo) RecordPayment(bookingID int64, intentID, method string, amount float64, status string, now time.Time) error {
+	m.pays[bookingID] = &payRec{intent: intentID, method: method, status: status, amount: amount, at: now}
 	return nil
 }
 

@@ -2415,6 +2415,87 @@ paths:
         '409': {$ref: '#/components/responses/Conflict'}
         '204': { description: No content }
 
+  /admin/v1/payments:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Payments console
+      operationId: adminListPayments
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, succeeded, failed, refunded] } }
+        - { name: method, in: query, schema: { type: string, enum: [promptpay, card, wallet] } }
+        - { name: q, in: query, description: Booking number or traveler e-mail, schema: { type: string } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/PaymentAdmin' } } } } ] }
+
+  /admin/v1/payments/summary:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Payment totals per status
+      operationId: adminPaymentSummary
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/PaymentTotal' } }, netCollected: { type: number } } }
+
+  /admin/v1/payments/reconciliation:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Reconcile bookings against payment records
+      operationId: adminPaymentReconciliation
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/ReconcileIssue' } }, total: { type: integer }, balanced: { type: boolean } } }
+
+  /admin/v1/payments/{bookingId}/refund:
+    servers:
+      - url: http://localhost:8080
+    post:
+      tags: [Admin portal]
+      summary: Refund a paid booking to the traveler's wallet
+      operationId: adminRefundPayment
+      parameters:
+        - { name: bookingId, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 3, maxLength: 255 } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { bookingId: { type: integer, format: int64 }, bookingNumber: { type: string }, status: { type: string }, refundAmount: { type: number } } }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3090,6 +3171,34 @@ components:
         name: { type: string }
         subtitle: { type: string }
         gradientCss: { type: string }
+    PaymentAdmin:
+      type: object
+      properties:
+        bookingId: { type: integer, format: int64 }
+        bookingNumber: { type: string }
+        traveler: { type: string }
+        method: { type: string, enum: [promptpay, card, wallet] }
+        status: { type: string, enum: [pending, succeeded, failed, refunded] }
+        amount: { type: number }
+        intentId: { type: string }
+        confirmedAt: { type: string, format: date-time }
+        bookingStatus: { type: string }
+        refundAmount: { type: number }
+    PaymentTotal:
+      type: object
+      properties:
+        status: { type: string }
+        count: { type: integer }
+        amount: { type: number }
+    ReconcileIssue:
+      type: object
+      properties:
+        bookingId: { type: integer, format: int64 }
+        bookingNumber: { type: string }
+        kind: { type: string, enum: [missing_payment, payment_not_succeeded, amount_mismatch, refund_mismatch, unexpected_payment] }
+        detail: { type: string }
+        expected: { type: number }
+        actual: { type: number }
     AuditLog:
       type: object
       properties:
