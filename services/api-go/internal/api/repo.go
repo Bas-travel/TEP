@@ -215,6 +215,8 @@ type Tx interface {
 	AddAudit(a auditRec) error
 	Audits(f AuditFilter) ([]auditRec, int, error)
 	Analytics(from, to time.Time) (AnalyticsRaw, error)
+	PlatformSettings() (map[string]PlatformSetting, error) // stored overrides only
+	SetPlatformSetting(key, value string, now time.Time) error
 	Stats(since time.Time) (PlatformStats, error)
 }
 

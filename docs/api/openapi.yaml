@@ -2534,6 +2534,65 @@ paths:
             text/csv:
               schema: { type: string }
 
+  /admin/v1/settings:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Platform settings (defaults merged with admin overrides)
+      operationId: adminListSettings
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { allOf: [ { $ref: '#/components/schemas/Page' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/PlatformSetting' } } } } ] }
+
+  /admin/v1/settings/{key}:
+    servers:
+      - url: http://localhost:8080
+    put:
+      tags: [Admin portal]
+      summary: Change a platform setting
+      operationId: adminPutSetting
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string, enum: [service_fee_percent, maintenance_banner, support_email] } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [value], properties: { value: { type: string } } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlatformSetting' }
+
+  /config:
+    get:
+      tags: [Catalog]
+      summary: Traveler-facing platform configuration (service fee, notice, support e-mail)
+      operationId: getPublicConfig
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  serviceFeePercent: { type: number }
+                  maintenanceBanner: { type: string }
+                  supportEmail: { type: string }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3267,6 +3326,15 @@ components:
             newUsers: { type: integer }
             avgOrderValue: { type: number }
             cancellationRatePct: { type: number }
+    PlatformSetting:
+      type: object
+      properties:
+        key: { type: string }
+        value: { type: string }
+        default: { type: string }
+        type: { type: string, enum: [number, text] }
+        description: { type: string }
+        updatedAt: { type: string, format: date-time }
     AuditLog:
       type: object
       properties:

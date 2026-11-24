@@ -99,6 +99,7 @@ type memRepo struct {
 	faqs      []FaqAdmin
 	faqsInit  bool
 	dests     []Destination
+	platform  map[string]PlatformSetting
 	destInit  bool
 	nextFaq   int
 

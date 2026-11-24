@@ -139,10 +139,14 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 		httpx.Invalid(w, r, errs...)
 		return
 	}
-	fee := round2(subtotal * 0.03)
-	total := round2(subtotal + fee - discount)
 	now := s.now()
 	s.idempotent(w, r, uid, "bookings", func(tx Tx) (int, any, error) {
+		pct, err := serviceFeePercent(tx)
+		if err != nil {
+			return 0, nil, err
+		}
+		fee := round2(subtotal * pct / 100)
+		total := round2(subtotal + fee - discount)
 		b := &bookingRec{UserID: uid, Lines: lines, BookingDetail: BookingDetail{
 			BookingSummary: BookingSummary{Type: typ, Title: title, Subtitle: subtitle, Amount: total, Date: now, Status: "pending_payment",
 				StartDate: start, EndDate: end, Guests: guests},

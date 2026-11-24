@@ -208,6 +208,7 @@ Tables referenced by relations or by the API but previously without a definition
 |-------|---------|
 | `user_sessions` | Hashed refresh token, device, expiry, revoked_at (rotation + reuse detection) |
 | `user_settings` | Theme / language / currency / notification toggles (1:1 users) |
+| `platform_settings` | Admin-editable platform values (service fee %, notice banner, support e-mail); a row exists only once changed, defaults live in code (migration 0007) |
 | `device_push_tokens` | FCM tokens per user/device |
 | `booking_line_items` | Listing (or AI trip package) lines of a booking |
 | `payment_intents` | API-facing intent (`pi_…` id, method, status, QR/client secret); `payments` keeps the settled record |
