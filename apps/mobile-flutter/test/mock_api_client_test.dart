@@ -18,9 +18,9 @@ void main() {
     final api = fresh();
     final hotels = await api.listings(type: 'hotel');
     expect(hotels.items.every((l) => l.type == 'hotel'), isTrue);
-    expect(hotels.items.length, 5);
+    expect(hotels.items.length, 11);
     final phuket = await api.listings(destinationId: 1);
-    expect(phuket.items.length, 4);
+    expect(phuket.items.length, 7);
     expect((await api.listings(q: 'kata')).items.single.id, 2);
     final p1 = await api.listings(limit: 5);
     expect(p1.items.length, 5);

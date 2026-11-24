@@ -107,6 +107,7 @@ jobs:
         working-directory: services/api-go
         env:
           APP_ENV: dev
+          DEMO_DATASET: "false" # contract tests assert the fixed fixtures; the large demo dataset is covered by Go tests
           HTTP_ADDR: ":8080"
           JWT_SECRET: ci-only-secret-0123456789abcdef0123456789
         run: |

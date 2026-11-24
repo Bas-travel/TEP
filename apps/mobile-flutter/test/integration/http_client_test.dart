@@ -19,12 +19,12 @@ void main() {
 
     test('catalog is public and shaped as the mock fixtures', () async {
       final d = await api.destinations();
-      expect(d.length, 6);
+      expect(d.length, 8);
       final page = await api.listings(type: 'hotel');
-      expect(page.items.length, 5);
+      expect(page.items.length, 11);
       expect((await api.listing(1)).amenities, isNotEmpty);
       await expectLater(api.listing(9999), throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)));
-      expect((await api.faqs()).length, 4);
+      expect((await api.faqs()).length, 20);
     });
 
     test('portals: each role reaches its own API prefix and only that one', () async {
