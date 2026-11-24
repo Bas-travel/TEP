@@ -43,12 +43,11 @@ void main() {
   });
 
   for (final demo in const [
-    ('demo-admin', 'admin@tep.dev', 'Admin Console'),
-    ('demo-partner', 'partner@tep.dev', 'Partner Workspace'),
-    ('demo-staff', 'staff@tep.dev', 'Staff Workspace'),
-    ('demo-moderator', 'moderator@tep.dev', 'Moderation Center'),
+    ('demo-admin', 'admin@tep.dev', 'แอดมิน'),
+    ('demo-partner', 'partner@tep.dev', 'พาร์ทเนอร์'),
+    ('demo-staff', 'staff@tep.dev', 'พนักงาน'),
   ]) {
-    testWidgets('${demo.$1} quick login routes to its role workspace',
+    testWidgets('${demo.$1} quick login routes to its own portal',
         (tester) async {
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1;
@@ -60,8 +59,25 @@ void main() {
       await tester.enterText(find.byKey(const Key('password')), 'Passw0rd!');
       await tester.tap(find.byKey(const Key('submit')));
       await tester.pumpAndSettle();
-      expect(find.text(demo.$3), findsOneWidget);
-      expect(find.byKey(const Key('role-navigation')), findsOneWidget);
+      final title = tester.widget<Text>(find.byKey(const Key('portal-title')));
+      expect(title.data, startsWith(demo.$3));
+      expect(find.byKey(const Key('portal-nav')), findsOneWidget);
     });
   }
+
+  testWidgets('moderator has no portal and uses the traveler app',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+        TepApp(api: MockApiClient(latency: Duration.zero), modeLabel: 'mock'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('email')), 'moderator@tep.dev');
+    await tester.enterText(find.byKey(const Key('password')), 'Passw0rd!');
+    await tester.tap(find.byKey(const Key('submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('portal-nav')), findsNothing);
+    expect(find.byKey(const Key('desktop-navigation')), findsOneWidget);
+  });
 }

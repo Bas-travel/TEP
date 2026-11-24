@@ -18,3 +18,6 @@ apps/mobile-flutter/.flutter-plugins-dependencies
 services/api-go/bin/
 coverage/
 *.log
+
+/backups/
+!.env.*.example

@@ -63,3 +63,11 @@ A first startup using the default host ports collided with an existing MinIO sta
 - [x] No `.env` or secret file included.
 - [ ] `apps/mobile-flutter/analysis_options.yaml` remains a separate uncommitted user change.
 - [ ] `04.png` remains an untracked attachment and is not part of the repository baseline commit.
+
+## Update 2026-11-22 (branch `feat/phase-03-sprint-1`, PR #2)
+- [x] Role portals (partner / admin / staff) implemented end to end: migrations 0005, RBAC middleware, 32 portal endpoints, Flutter portals, tests, OpenAPI (90 operations).
+- [x] `main` "ui ใหม่" merged; placeholder `role_shell.dart` / `portals_screen.dart` replaced by the functional portals.
+- [x] Demo dataset (20-30 rows per module, migration 0006 + `demo_dataset.go`, `DEMO_DATASET=true`) verified on MySQL 8.
+- [x] `.env` generation scripts, backup/restore scripts + runbook (bash round trip verified).
+- [ ] Docker Compose on a real daemon; Flutter on device — pending on the user's machine.
+- [ ] Roadmap P2-P7 (back-office completeness, payment sandbox, security hardening, QA >= 80% coverage, staging) — see `docs/implementation/roadmap.md`.

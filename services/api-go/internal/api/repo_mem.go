@@ -28,6 +28,7 @@ type walletRec struct {
 type payRec struct {
 	intent, method, status string
 	amount                 float64
+	at                     time.Time
 }
 
 type postRec struct {
@@ -77,8 +78,10 @@ type memRepo struct {
 	nextTrip   int64
 	reviews    map[int64][]reviewRec
 	nextRev    int64
-	tickets    map[int64][]SupportTicket
+	tickets    map[int64]*ticketRec
 	nextTicket int64
+	replies    map[int64][]TicketReply // ticket -> replies, oldest first
+	nextReply  int64
 	jobs       map[string]jobRec
 	jobOwner   map[string]int64
 
@@ -92,11 +95,26 @@ type memRepo struct {
 	saves     map[int64]map[int64]bool
 	hides     map[int64]map[int64]bool // user -> post
 	follows   map[int64]map[int64]bool // follower -> followee
-	reports   int
+	reports   []postReportRec
+	faqs      []FaqAdmin
+	faqsInit  bool
+	dests     []Destination
+	platform  map[string]PlatformSetting
+	destInit  bool
+	nextFaq   int
+
+	listings    map[int64]*listingRow
+	nextListing int64
+	partners    map[int64]*partnerRec
+	nextPartner int64
+	checks      []bookingCheck
+	nextCheck   int64
+	audits      []auditRec
+	nextAudit   int64
 }
 
 func newMemRepo() *memRepo {
-	return &memRepo{
+	m := &memRepo{
 		users: map[int64]*userRec{}, byEmail: map[string]int64{}, byHandle: map[string]int64{}, nextUser: 1,
 		sess: map[string]*sessRec{}, push: map[string]int64{},
 		wallets: map[int64]*walletRec{}, nextTx: 1, bookings: map[int64]*bookingRec{}, nextBk: 1,
@@ -104,10 +122,16 @@ func newMemRepo() *memRepo {
 		settings: map[int64]Settings{}, coupons: map[string]*couponDef{}, couponIDs: map[string]int64{}, nextCoupon: 1,
 		granted: map[int64][]string{}, notifs: map[int64][]Notification{}, nextNotif: 1,
 		trips: map[int64][]SavedTrip{}, nextTrip: 1, reviews: map[int64][]reviewRec{}, nextRev: 1,
-		tickets: map[int64][]SupportTicket{}, nextTicket: 1, jobs: map[string]jobRec{}, jobOwner: map[string]int64{},
+		tickets: map[int64]*ticketRec{}, nextTicket: 1, replies: map[int64][]TicketReply{}, nextReply: 1, jobs: map[string]jobRec{}, jobOwner: map[string]int64{},
 		groups: map[int64]*groupRec{}, nextGroup: 1, posts: map[int64]*postRec{}, nextPost: 1, nextCmt: 1,
 		likes: map[int64]map[int64]bool{}, saves: map[int64]map[int64]bool{}, hides: map[int64]map[int64]bool{}, follows: map[int64]map[int64]bool{},
+		listings: map[int64]*listingRow{}, nextListing: 1, partners: map[int64]*partnerRec{}, nextPartner: 1, nextCheck: 1, nextAudit: 1,
 	}
+	for _, l := range seedListings {
+		l.Status = "published"
+		_ = m.SaveListing(&l)
+	}
+	return m
 }
 
 func (m *memRepo) Tx(_ context.Context, fn func(Tx) error) error {
@@ -143,6 +167,7 @@ func (m *memRepo) CreateUser(u *userRec, now time.Time) error {
 	if u.Profile.Level == "" {
 		u.Profile.Level = "Explorer"
 	}
+	u.CreatedAt = now
 	cp := *u
 	m.users[id] = &cp
 	m.byEmail[email] = id
@@ -199,7 +224,12 @@ func (m *memRepo) DeleteUser(id int64, _ time.Time) error {
 	delete(m.notifs, id)
 	delete(m.trips, id)
 	delete(m.reviews, id)
-	delete(m.tickets, id)
+	for tid, t := range m.tickets {
+		if t.UserID == id {
+			delete(m.tickets, tid)
+			delete(m.replies, tid)
+		}
+	}
 	delete(m.follows, id)
 	for _, f := range m.follows {
 		delete(f, id)
@@ -394,8 +424,8 @@ func (m *memRepo) PendingIntents(uid int64) ([]*intentRec, error) {
 	return out, nil
 }
 
-func (m *memRepo) RecordPayment(bookingID int64, intentID, method string, amount float64, status string, _ time.Time) error {
-	m.pays[bookingID] = &payRec{intent: intentID, method: method, status: status, amount: amount}
+func (m *memRepo) RecordPayment(bookingID int64, intentID, method string, amount float64, status string, now time.Time) error {
+	m.pays[bookingID] = &payRec{intent: intentID, method: method, status: status, amount: amount, at: now}
 	return nil
 }
 
@@ -561,14 +591,31 @@ func (m *memRepo) Reviews(uid int64) ([]reviewRec, error) {
 }
 
 func (m *memRepo) AddTicket(uid int64, subject, message string, now time.Time) (SupportTicket, error) {
-	t := SupportTicket{ID: m.nextTicket, Subject: subject, Message: message, CreatedAt: now}
+	t := &ticketRec{SupportTicket: SupportTicket{ID: m.nextTicket, Subject: subject, Message: message, Status: "open", CreatedAt: now, Replies: []TicketReply{}}, UserID: uid}
 	m.nextTicket++
-	m.tickets[uid] = append(m.tickets[uid], t)
-	return t, nil
+	m.tickets[t.ID] = t
+	return t.SupportTicket, nil
+}
+
+func (m *memRepo) ticketOut(t *ticketRec, withReplies bool) *ticketRec {
+	cp := *t
+	cp.ReplyCount = len(m.replies[t.ID])
+	cp.Replies = []TicketReply{}
+	if withReplies {
+		cp.Replies = append(cp.Replies, m.replies[t.ID]...)
+	}
+	return &cp
 }
 
 func (m *memRepo) Tickets(uid int64) ([]SupportTicket, error) {
-	return append([]SupportTicket{}, m.tickets[uid]...), nil
+	out := []SupportTicket{}
+	for _, t := range m.tickets {
+		if t.UserID == uid {
+			out = append(out, m.ticketOut(t, true).SupportTicket)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
 }
 
 func (m *memRepo) AddJob(uid int64, j jobRec, _ time.Time) error {
@@ -793,11 +840,11 @@ func (m *memRepo) HidePost(uid, id int64) error {
 	return nil
 }
 
-func (m *memRepo) ReportPost(_, id int64, _ string, _ time.Time) error {
+func (m *memRepo) ReportPost(uid, id int64, reason string, now time.Time) error {
 	if _, ok := m.posts[id]; !ok {
 		return ErrNotFound
 	}
-	m.reports++
+	m.reports = append(m.reports, postReportRec{postID: id, userID: uid, reason: reason, at: now})
 	return nil
 }
 

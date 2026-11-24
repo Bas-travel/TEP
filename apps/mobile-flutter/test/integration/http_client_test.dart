@@ -19,12 +19,29 @@ void main() {
 
     test('catalog is public and shaped as the mock fixtures', () async {
       final d = await api.destinations();
-      expect(d.length, 6);
+      expect(d.length, 8);
       final page = await api.listings(type: 'hotel');
-      expect(page.items.length, 5);
+      expect(page.items.length, 11);
       expect((await api.listing(1)).amenities, isNotEmpty);
       await expectLater(api.listing(9999), throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)));
-      expect((await api.faqs()).length, 4);
+      expect((await api.faqs()).length, 20);
+    });
+
+    test('portals: each role reaches its own API prefix and only that one', () async {
+      Matcher status(int s) => throwsA(isA<ApiException>().having((e) => e.status, 'status', s));
+      await api.login('staff@tep.dev', 'Passw0rd!');
+      expect((await api.me()).role, 'staff');
+      expect((await api.portal('GET', '/staff/v1/dashboard')).containsKey('openTickets'), isTrue);
+      await expectLater(api.portal('GET', '/admin/v1/users'), status(403));
+      await expectLater(api.portal('GET', '/partner/v1/dashboard'), status(403));
+      await api.login('admin@tep.dev', 'Passw0rd!');
+      final users = await api.portal('GET', '/admin/v1/users', query: {'role': 'staff'});
+      expect(users['total'], 1);
+      await api.login('partner@tep.dev', 'Passw0rd!');
+      final listings = await api.portal('GET', '/partner/v1/listings');
+      expect((listings['items'] as List).length, 4);
+      await api.login('demo@tep.dev', 'Passw0rd!');
+      await expectLater(api.portal('GET', '/partner/v1/listings'), status(403));
     });
 
     test('auth errors map to ApiException with code', () async {

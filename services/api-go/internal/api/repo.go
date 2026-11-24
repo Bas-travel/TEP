@@ -45,13 +45,14 @@ const (
 )
 
 type userRec struct {
-	ID       int64
-	Role     string
-	Status   string // active | deleted
-	PassHash string
-	Bio      string
-	Handle   string // public member id used by the community API (e.g. "m_nok", "m_12")
-	Profile  UserProfile
+	ID        int64
+	Role      string
+	Status    string // active | deleted
+	PassHash  string
+	Bio       string
+	Handle    string // public member id used by the community API (e.g. "m_nok", "m_12")
+	CreatedAt time.Time
+	Profile   UserProfile
 }
 
 type bookingLine struct {
@@ -132,6 +133,9 @@ type Tx interface {
 	PendingIntents(uid int64) ([]*intentRec, error)
 	RecordPayment(bookingID int64, intentID, method string, amount float64, status string, now time.Time) error
 	MarkPaymentRefunded(bookingID int64) error
+	AdminPayments(f PaymentFilter) ([]PaymentAdmin, int, error) // newest first
+	PaymentTotals() ([]PaymentTotal, error)                     // one row per status present
+	ReconcilePayments() ([]ReconcileIssue, error)               // empty = books agree
 	GetIdem(uid int64, endpoint, key string) (*idemRec, error)
 	PutIdem(uid int64, endpoint, key string, rec idemRec, now time.Time) error // ErrDuplicate if the key already exists
 	AddWebhookEvent(provider, eventID string, now time.Time) error             // ErrDuplicate => already processed
@@ -170,9 +174,50 @@ type Tx interface {
 	TogglePostSave(uid, id int64) (bool, error)
 	HidePost(uid, id int64) error
 	ReportPost(uid, id int64, reason string, now time.Time) error
+
+	// Admin content management (coupons, FAQs, moderation queue).
+	AdminCoupons(today string) ([]CouponAdmin, error)
+	DeleteCoupon(code string) error // ErrNotFound; ErrDuplicate when still held by a wallet
+	Faqs() ([]FaqAdmin, error)      // ordered by sortNo, id
+	SaveFaq(f *FaqAdmin) error      // ID 0 creates (sets ID); otherwise updates (ErrNotFound)
+	DeleteFaq(id int) error         // ErrNotFound
+	PostReports(offset, limit int) ([]PostReportRow, int, error)
+	DismissPostReports(postID int64) (int, error) // number of reports removed
+	AdminDeletePost(postID int64) error           // removes any post (ErrNotFound)
 	AddComment(uid, postID int64, text string, now time.Time) (Comment, error)
 	Member(viewer int64, handle string) (*MemberProfile, error)
 	ToggleFollow(viewer int64, handle string) (bool, error)
+
+	// ---- catalog (managed by partners; read by travelers) ----
+	Destinations() ([]Destination, error)
+	SaveDestination(d *Destination) error                       // ID 0 = create; ErrDuplicate on slug clash
+	DeleteDestination(id int64) error                           // ErrNotFound / ErrDuplicate (listings still reference it)
+	Listings(f ListingFilter) ([]listingRow, error)             // ordered by id
+	ListingByID(id int64, publicOnly bool) (*listingRow, error) // ErrNotFound when hidden
+	SaveListing(l *listingRow) error                            // ID 0 inserts (sets ID); otherwise upsert with that id
+	// ---- partners ----
+	CreatePartner(p *partnerRec) error // ErrDuplicate when the user already has a partner record
+	PartnerByID(id int64, lock bool) (*partnerRec, error)
+	PartnerByUser(uid int64, lock bool) (*partnerRec, error)
+	SavePartner(p *partnerRec) error
+	Partners(f PartnerFilter) ([]*partnerRec, int, error) // newest first, total ignores paging
+	// ---- admin / staff reads and writes ----
+	UserAny(id int64, lock bool) (*userRec, error) // any status, including suspended
+	AdminUsers(f UserFilter) ([]*userRec, int, error)
+	AdminBookings(f BookingFilter) ([]*bookingRec, int, error) // newest first, Lines loaded
+	AddBookingCheck(c *bookingCheck) error
+	BookingChecks(bookingID int64) ([]bookingCheck, error) // newest first
+	CheckStats(staffID int64, from, to time.Time) (verified, flagged int, err error)
+	AdminTickets(f TicketFilter) ([]*ticketRec, int, error) // newest first, replies not loaded
+	TicketByID(id int64, lock bool) (*ticketRec, error)     // replies loaded
+	AddTicketReply(ticketID, authorID int64, authorRole, message string, now time.Time) (TicketReply, error)
+	SetTicketStatus(id int64, status string, now time.Time) error
+	AddAudit(a auditRec) error
+	Audits(f AuditFilter) ([]auditRec, int, error)
+	Analytics(from, to time.Time) (AnalyticsRaw, error)
+	PlatformSettings() (map[string]PlatformSetting, error) // stored overrides only
+	SetPlatformSetting(key, value string, now time.Time) error
+	Stats(since time.Time) (PlatformStats, error)
 }
 
 func bookingNumber(id int64, t time.Time) string {

@@ -28,6 +28,7 @@ type Server struct {
 	log         *slog.Logger
 	now         func() time.Time
 	checks      map[string]Check
+	demoDataset bool          // seed the full demo dataset (cfg.DemoDataset)
 	settleAfter time.Duration // mock PSP (MOCK_PAYMENT=true): how long a pending intent stays pending
 }
 
@@ -38,7 +39,7 @@ type Option func(*Server)
 func WithRepo(r Repo) Option { return func(s *Server) { s.repo = r } }
 
 func New(cfg config.Config, log *slog.Logger, checks map[string]Check, opts ...Option) *Server {
-	s := &Server{cfg: cfg, repo: newMemRepo(), log: log, now: time.Now, checks: checks, settleAfter: 3 * time.Second}
+	s := &Server{cfg: cfg, repo: newMemRepo(), log: log, now: time.Now, checks: checks, settleAfter: 3 * time.Second, demoDataset: cfg.DemoDataset}
 	for _, o := range opts {
 		o(s)
 	}
@@ -158,6 +159,12 @@ func (s *Server) Handler() http.Handler {
 
 	s.engageRoutes(m)
 	s.communityRoutes(m)
+	m.HandleFunc("POST /v1/partners/apply", s.authed(s.applyPartner))
+	m.HandleFunc("GET /v1/partners/me", s.authed(s.myPartnerApplication))
+	m.HandleFunc("POST /v1/support/tickets/{ticketId}/replies", s.authed(s.replyOwnTicket))
+	s.partnerRoutes(m)
+	s.adminRoutes(m)
+	s.staffRoutes(m)
 
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { httpx.NotFound(w, r) })
 	return m

@@ -8,7 +8,7 @@ import 'data/http_api_client.dart';
 import 'data/mock_api_client.dart';
 import 'data/models.dart';
 import 'ui/login_screen.dart';
-import 'ui/role_shell.dart';
+import 'ui/portal/portal_shell.dart';
 import 'ui/shell.dart';
 
 /// `flutter run --dart-define=API_MODE=http --dart-define=API_BASE_URL=http://10.0.2.2:8080`
@@ -69,9 +69,15 @@ class _TepAppState extends State<TepApp> {
     );
   }
 
+  /// Back-office roles get their own functional portal; travelers and
+  /// moderators (no portal in the MVP scope) use the traveler app.
   Widget _authenticatedShell(SessionController session, String modeLabel) {
     final role = session.user?.role ?? AccessRole.traveler;
-    if (role == AccessRole.traveler) return AppShell(modeLabel: modeLabel);
-    return RoleShell(role: role, modeLabel: modeLabel);
+    if (const {AccessRole.partner, AccessRole.admin, AccessRole.staff}
+        .contains(role)) {
+      return PortalShell(
+          key: ValueKey('portal-$role'), role: role, modeLabel: modeLabel);
+    }
+    return AppShell(modeLabel: modeLabel);
   }
 }

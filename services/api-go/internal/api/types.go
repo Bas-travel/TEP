@@ -31,6 +31,8 @@ type ListingDetail struct {
 type listingRow struct {
 	ListingDetail
 	DestinationID int64
+	PartnerID     int64  // 0 = platform-owned
+	Status        string // draft | published | archived ("" is read as published)
 }
 
 type Faq struct {

@@ -54,6 +54,12 @@ class HttpApiClient implements ApiClient {
     return json;
   }
 
+  @override
+  Future<Json> portal(String method, String path, {Object? body, Map<String, String?> query = const {}}) {
+    final q = <String, String>{for (final e in query.entries) if (e.value != null && e.value!.isNotEmpty) e.key: e.value!};
+    return _call(method, Uri.parse('$baseUrl$path').replace(queryParameters: q.isEmpty ? null : q), body: body);
+  }
+
   Future<bool> _refresh() async {
     final t = _tokens;
     if (t == null) return false;

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -81,8 +82,21 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 	var subtotal float64
 	var title, subtitle, typ string
 	var lines []bookingLine
+	found := map[int64]*listingRow{}
+	if err := s.repo.Tx(r.Context(), func(tx Tx) error {
+		for _, ln := range req.Lines {
+			if l, e := tx.ListingByID(ln.ListingID, true); e == nil {
+				found[ln.ListingID] = l
+			} else if !errors.Is(e, ErrNotFound) {
+				return e
+			}
+		}
+		return nil
+	}); s.fail(w, r, err) {
+		return
+	}
 	for i, ln := range req.Lines {
-		l, ok := findListing(ln.ListingID)
+		l, ok := found[ln.ListingID]
 		if !ok {
 			errs = append(errs, fe(fmt.Sprintf("lines[%d].listingId", i), "unknown listing"))
 			continue
@@ -125,10 +139,14 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request, uid int64
 		httpx.Invalid(w, r, errs...)
 		return
 	}
-	fee := round2(subtotal * 0.03)
-	total := round2(subtotal + fee - discount)
 	now := s.now()
 	s.idempotent(w, r, uid, "bookings", func(tx Tx) (int, any, error) {
+		pct, err := serviceFeePercent(tx)
+		if err != nil {
+			return 0, nil, err
+		}
+		fee := round2(subtotal * pct / 100)
+		total := round2(subtotal + fee - discount)
 		b := &bookingRec{UserID: uid, Lines: lines, BookingDetail: BookingDetail{
 			BookingSummary: BookingSummary{Type: typ, Title: title, Subtitle: subtitle, Amount: total, Date: now, Status: "pending_payment",
 				StartDate: start, EndDate: end, Guests: guests},
@@ -162,18 +180,7 @@ func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request, uid int64
 		if b.Status != "pending_payment" && b.Status != "confirmed" {
 			return invalid(fe("status", "booking cannot be cancelled in state "+b.Status))
 		}
-		refund := 0.0
-		if b.Status == "confirmed" {
-			refund = b.Amount
-			if _, e := tx.WalletAdjust(uid, refund, "คืนเงินการจอง "+b.BookingNumber, s.now()); e != nil {
-				return e
-			}
-			if e := tx.MarkPaymentRefunded(b.ID); e != nil {
-				return e
-			}
-		}
-		b.Status, b.CancelReason, b.RefundAmount = "cancelled", req.Reason, &refund
-		if e := tx.SaveBooking(b); e != nil {
+		if e := s.refundBooking(tx, b, req.Reason); e != nil {
 			return e
 		}
 		d = b.BookingDetail
