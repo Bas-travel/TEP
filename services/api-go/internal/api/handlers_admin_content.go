@@ -18,6 +18,7 @@ func (s *Server) adminContentRoutes(m *http.ServeMux) {
 	p := s.portal(RoleAdmin)
 	s.adminDestinationRoutes(m)
 	s.adminPaymentRoutes(m)
+	s.adminAnalyticsRoutes(m)
 	m.HandleFunc("GET /admin/v1/coupons", p(s.adminListCoupons))
 	m.HandleFunc("POST /admin/v1/coupons", p(s.adminCreateCoupon))
 	m.HandleFunc("PUT /admin/v1/coupons/{code}", p(s.adminUpdateCoupon))

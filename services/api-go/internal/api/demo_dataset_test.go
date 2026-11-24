@@ -104,6 +104,9 @@ func TestDemoDatasetCoversEveryMenu(t *testing.T) {
 	if _, rec, _ := e.do("GET", "/admin/v1/payments/reconciliation", admin, nil); rec["balanced"] != true {
 		t.Errorf("demo data does not reconcile: %v", rec)
 	}
+	if _, an, _ := e.do("GET", "/admin/v1/analytics?days=365", admin, nil); an["totals"].(map[string]any)["bookings"].(float64) < 10 {
+		t.Errorf("analytics shows too few paid bookings: %v", an["totals"])
+	}
 	if n := e.itemsTotal(admin, "/admin/v1/payments"); n < 20 {
 		t.Errorf("payments console has %d rows, want >= 20", n)
 	}

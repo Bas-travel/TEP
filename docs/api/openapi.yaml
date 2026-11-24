@@ -2496,6 +2496,44 @@ paths:
             application/json:
               schema: { type: object, properties: { bookingId: { type: integer, format: int64 }, bookingNumber: { type: string }, status: { type: string }, refundAmount: { type: number } } }
 
+  /admin/v1/analytics:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Revenue, bookings and sign-ups over the last N days
+      operationId: adminAnalytics
+      parameters:
+        - { name: days, in: query, description: Window length in Bangkok days ending today, schema: { type: integer, minimum: 1, maximum: 365, default: 30 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Analytics' }
+
+  /admin/v1/analytics/export:
+    servers:
+      - url: http://localhost:8080
+    get:
+      tags: [Admin portal]
+      summary: Daily series as CSV
+      operationId: adminAnalyticsExport
+      parameters:
+        - { name: days, in: query, description: Window length in Bangkok days ending today, schema: { type: integer, minimum: 1, maximum: 365, default: 30 } }
+      responses:
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '200':
+          description: CSV (date, paid_bookings, revenue_thb, new_users)
+          content:
+            text/csv:
+              schema: { type: string }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3199,6 +3237,36 @@ components:
         detail: { type: string }
         expected: { type: number }
         actual: { type: number }
+    Analytics:
+      type: object
+      properties:
+        days: { type: integer }
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              bookings: { type: integer }
+              revenue: { type: number }
+              newUsers: { type: integer }
+        byType:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              bookings: { type: integer }
+              revenue: { type: number }
+        byStatus: { type: object, additionalProperties: { type: integer } }
+        totals:
+          type: object
+          properties:
+            bookings: { type: integer }
+            revenue: { type: number }
+            newUsers: { type: integer }
+            avgOrderValue: { type: number }
+            cancellationRatePct: { type: number }
     AuditLog:
       type: object
       properties:

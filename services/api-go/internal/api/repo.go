@@ -214,6 +214,7 @@ type Tx interface {
 	SetTicketStatus(id int64, status string, now time.Time) error
 	AddAudit(a auditRec) error
 	Audits(f AuditFilter) ([]auditRec, int, error)
+	Analytics(from, to time.Time) (AnalyticsRaw, error)
 	Stats(since time.Time) (PlatformStats, error)
 }
 
